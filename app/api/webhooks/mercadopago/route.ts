@@ -45,27 +45,35 @@ export async function POST(request: Request) {
 
     // 2. Tentar buscar como ORDER (Orders API - padrão do Checkout Transparente e Pix)
     if (String(dataId).startsWith("ORD") || topic === "order" || topic?.includes("order")) {
-      const orderRes = await fetch(`https://api.mercadopago.com/v1/orders/${dataId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      try {
+        const orderRes = await fetch(`https://api.mercadopago.com/v1/orders/${dataId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      if (orderRes.ok) {
-        const orderData = await orderRes.json();
-        externalRef = orderData.external_reference || "";
-        isApproved = orderData.status === "processed" || orderData.status === "paid";
+        if (orderRes.ok) {
+          const orderData = await orderRes.json();
+          externalRef = orderData.external_reference || "";
+          isApproved = orderData.status === "processed" || orderData.status === "paid";
+        }
+      } catch (err: any) {
+        console.warn("[MercadoPago Webhook] Erro ao consultar ordem MP:", err?.message || err);
       }
     }
 
     // 3. Se não foi tratado como Order ou falhou, tenta buscar como PAYMENT
     if (!isApproved && !externalRef) {
-      const payRes = await fetch(`https://api.mercadopago.com/v1/payments/${dataId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      try {
+        const payRes = await fetch(`https://api.mercadopago.com/v1/payments/${dataId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-      if (payRes.ok) {
-        const payData = await payRes.json();
-        externalRef = payData.external_reference || "";
-        isApproved = payData.status === "approved";
+        if (payRes.ok) {
+          const payData = await payRes.json();
+          externalRef = payData.external_reference || "";
+          isApproved = payData.status === "approved";
+        }
+      } catch (err: any) {
+        console.warn("[MercadoPago Webhook] Erro ao consultar pagamento MP:", err?.message || err);
       }
     }
 
@@ -144,6 +152,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true, approved: isApproved });
   } catch (err: any) {
     console.error("[MercadoPago Webhook] Erro:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ received: true, approved: false, error: err.message }, { status: 200 });
   }
 }
