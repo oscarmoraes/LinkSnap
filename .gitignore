@@ -38,4 +38,4 @@ nao-upload/
 legacy_index.html
 .agents/
 skills-lock.json
-supabase/
+/supabase/

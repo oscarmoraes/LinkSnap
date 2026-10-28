@@ -11,16 +11,25 @@ export default async function SettingsPage() {
 
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, handle, full_name, avatar_url, brand_name, brand_logo_url, plan_tier")
-    .eq("id", user.id)
-    .single();
+  const [profileRes, subRes] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, handle, full_name, avatar_url, brand_name, brand_logo_url, plan_tier")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("subscriptions")
+      .select("id, status, plan_tier, current_period_end, mp_payment_id, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   return (
     <SettingsClient
       initialProfile={
-        profile || {
+        profileRes.data || {
           id: user.id,
           handle: user.email?.split("@")[0] || "user",
           full_name: null,
@@ -30,6 +39,7 @@ export default async function SettingsPage() {
           plan_tier: "free",
         }
       }
+      initialSubscription={subRes.data || null}
       userEmail={user.email || ""}
     />
   );
