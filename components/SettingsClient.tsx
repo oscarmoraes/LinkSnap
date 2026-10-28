@@ -21,7 +21,9 @@ import {
   Layers,
   Crown,
   Info,
+  QrCode,
 } from "lucide-react";
+import { PixCheckoutModal } from "@/components/PixCheckoutModal";
 
 interface SettingsClientProps {
   initialProfile: {
@@ -76,6 +78,14 @@ export default function SettingsClient({
   const [devModalMessage, setDevModalMessage] = useState("");
   const [simulating, setSimulating] = useState(false);
 
+  // Estado do Modal de Pix Transparente
+  const [pixModalOpen, setPixModalOpen] = useState(false);
+  const [pixModalData, setPixModalData] = useState<{
+    qrCode: string;
+    qrCodeBase64: string;
+    ticketUrl?: string;
+  } | null>(null);
+
   // Status de retorno do checkout do Mercado Pago
   const billingStatus = searchParams.get("billing");
 
@@ -124,6 +134,26 @@ export default function SettingsClient({
     const planKey = `${selectedTier}_${billingCycle}`;
 
     try {
+      // 1. Tenta criar a ordem via Checkout Transparente (Orders API) com Pix imediato
+      const orderRes = await fetch("/api/mercadopago/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planKey, paymentMethod: "pix" }),
+      });
+
+      const orderData = await orderRes.json();
+
+      if (orderRes.ok && orderData.pix?.qrCodeBase64) {
+        setPixModalData({
+          qrCode: orderData.pix.qrCode,
+          qrCodeBase64: orderData.pix.qrCodeBase64,
+          ticketUrl: orderData.pix.ticketUrl,
+        });
+        setPixModalOpen(true);
+        return;
+      }
+
+      // 2. Se falhar na Orders API, usa a rota de preferência como fallback
       const res = await fetch("/api/mercadopago/create-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -137,11 +167,9 @@ export default function SettingsClient({
       }
 
       if (data.isSimulated) {
-        // Modo simulação / desenvolvedor sem token cadastrado
         setDevModalMessage(data.message);
         setDevModalOpen(true);
       } else if (data.initPoint) {
-        // Redireciona diretamente para o checkout oficial do Mercado Pago
         window.location.href = data.initPoint;
       } else {
         throw new Error("Link de pagamento do Mercado Pago não retornado.");
@@ -704,6 +732,19 @@ export default function SettingsClient({
           </div>
         </div>
       )}
+
+      {/* Modal de Pagamento Pix Transparente (Orders API) */}
+      <PixCheckoutModal
+        isOpen={pixModalOpen}
+        onClose={() => setPixModalOpen(false)}
+        pixData={pixModalData}
+        planName={selectedTier === "pro" ? "LinkSnap PRO" : "Plano Business"}
+        priceFormatted={
+          selectedTier === "pro"
+            ? billingCycle === "monthly" ? "R$ 19,90" : "R$ 199,00"
+            : billingCycle === "monthly" ? "R$ 49,90" : "R$ 499,00"
+        }
+      />
     </div>
   );
 }
