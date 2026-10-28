@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import {
   Smartphone,
@@ -16,7 +16,9 @@ import {
   Settings,
   ArrowRight,
   Layers,
+  Users,
 } from "lucide-react";
+import BioLeadsTable, { BioLeadItem } from "@/components/BioLeadsTable";
 
 interface BioPageItem {
   id: string;
@@ -32,22 +34,52 @@ interface BioPageItem {
 
 export default function BioListClient({
   initialBios,
+  initialLeads = [],
   handle,
   origin,
   userId,
+  defaultTab = "bios",
 }: {
   initialBios: BioPageItem[];
+  initialLeads?: BioLeadItem[];
   handle: string;
   origin: string;
   userId: string;
+  defaultTab?: "bios" | "leads";
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [bios, setBios] = useState<BioPageItem[]>(initialBios);
+  const [leads, setLeads] = useState<BioLeadItem[]>(initialLeads);
+  const [activeTab, setActiveTab] = useState<"bios" | "leads">(defaultTab);
   const [newTitle, setNewTitle] = useState("");
   const [newSlug, setNewSlug] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+
+  // Sincronizar com query param ?tab=leads caso mude na URL
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "leads") {
+      setActiveTab("leads");
+    } else if (tabParam === "bios") {
+      setActiveTab("bios");
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: "bios" | "leads") => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (tab === "leads") {
+        url.searchParams.set("tab", "leads");
+      } else {
+        url.searchParams.delete("tab");
+      }
+      window.history.replaceState(null, "", url.toString());
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,185 +150,271 @@ export default function BioListClient({
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Bio Pages (Linktree)</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
+            {activeTab === "bios" ? "Bio Pages (Linktree)" : "Gestão de Leads da Bio"}
+          </h1>
           <p className="text-xs text-zinc-600 font-medium mt-1">
-            Crie múltiplas páginas de perfil com layouts personalizados em{" "}
-            <code className="rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-blue-700 font-mono font-bold">
-              /b/{handle}/slug
-            </code>.
+            {activeTab === "bios" ? (
+              <>
+                Crie múltiplas páginas de perfil com layouts personalizados em{" "}
+                <code className="rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-blue-700 font-mono font-bold">
+                  /b/{handle}/slug
+                </code>.
+              </>
+            ) : (
+              "Visualize, filtre, contate no WhatsApp e exporte os contatos capturados pelos formulários das suas Bio Pages."
+            )}
           </p>
         </div>
 
+        {activeTab === "bios" && (
+          <button
+            onClick={() => setIsCreating(!isCreating)}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {isCreating ? "Fechar" : "Criar Nova Bio Page"}
+          </button>
+        )}
+      </div>
+
+      {/* Abas de Navegação */}
+      <div className="flex items-center gap-2 border-b border-zinc-200 -mt-2">
         <button
-          onClick={() => setIsCreating(!isCreating)}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition"
+          type="button"
+          onClick={() => handleTabChange("bios")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition ${
+            activeTab === "bios"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-zinc-500 hover:text-zinc-800"
+          }`}
         >
-          <Plus className="h-3.5 w-3.5" />
-          {isCreating ? "Fechar" : "Criar Nova Bio Page"}
+          <span>📱 Minhas Bio Pages</span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              activeTab === "bios"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-zinc-100 text-zinc-600"
+            }`}
+          >
+            {bios.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange("leads")}
+          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-bold transition ${
+            activeTab === "leads"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-zinc-500 hover:text-zinc-800"
+          }`}
+        >
+          <span>👥 Leads Capturados</span>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+              activeTab === "leads"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-zinc-100 text-zinc-600"
+            }`}
+          >
+            {leads.length}
+          </span>
         </button>
       </div>
 
-      {/* Formulário de Criação Rápida */}
-      {isCreating && (
-        <form
-          onSubmit={handleCreate}
-          className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 shadow-sm space-y-3 animate-in fade-in"
-        >
-          <h2 className="text-xs font-bold uppercase tracking-wider text-blue-900">
-            Nova Página de Bio
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
-                Título da Página *
-              </label>
-              <input
-                type="text"
-                required
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="Ex: Minha Bio Pessoal, Lançamento do Curso, etc."
-                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
-                Slug da URL (Opcional)
-              </label>
-              <div className="flex items-center rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 focus-within:border-blue-600">
-                <span className="text-[11px] text-zinc-400 font-mono">/b/{handle}/</span>
-                <input
-                  type="text"
-                  value={newSlug}
-                  onChange={(e) => setNewSlug(e.target.value)}
-                  placeholder="versao-1"
-                  className="w-full bg-transparent text-xs text-blue-700 font-mono focus:outline-none pl-1 border-transparent"
-                />
+      {/* ABA 1: MINHAS BIO PAGES */}
+      {activeTab === "bios" && (
+        <div className="space-y-6 animate-in fade-in">
+          {/* Formulário de Criação Rápida */}
+          {isCreating && (
+            <form
+              onSubmit={handleCreate}
+              className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 shadow-sm space-y-3 animate-in fade-in"
+            >
+              <h2 className="text-xs font-bold uppercase tracking-wider text-blue-900">
+                Nova Página de Bio
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
+                    Título da Página *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="Ex: Minha Bio Pessoal, Lançamento do Curso, etc."
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
+                    Slug da URL (Opcional)
+                  </label>
+                  <div className="flex items-center rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 focus-within:border-blue-600">
+                    <span className="text-[11px] text-zinc-400 font-mono">/b/{handle}/</span>
+                    <input
+                      type="text"
+                      value={newSlug}
+                      onChange={(e) => setNewSlug(e.target.value)}
+                      placeholder="versao-1"
+                      className="w-full bg-transparent text-xs text-blue-700 font-mono focus:outline-none pl-1 border-transparent"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(false)}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-1.5 text-xs font-semibold text-white shadow-sm"
+                >
+                  Continuar para o Editor ➔
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Grid de Bio Pages */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {bios.length === 0 ? (
+              <div className="col-span-full rounded-xl border border-dashed border-zinc-300 p-12 text-center">
+                <Smartphone className="mx-auto h-10 w-10 text-zinc-400" />
+                <h3 className="mt-3 text-sm font-semibold text-zinc-900">Nenhuma Bio Page criada ainda</h3>
+                <p className="mt-1 text-xs text-zinc-500 max-w-sm mx-auto">
+                  Crie sua primeira página de bio com botões, links de WhatsApp, redes sociais e layout customizável.
+                </p>
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
+                >
+                  Criar Primeira Bio Page
+                </button>
+              </div>
+            ) : (
+              bios.map((bio) => {
+                const bioUrl = `${origin}/b/${handle}/${bio.slug}`;
+                const leadsCountForThisBio = leads.filter((l) => l.bio_page_id === bio.id).length;
+
+                return (
+                  <div
+                    key={bio.id}
+                    className="group relative flex flex-col justify-between rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-blue-400 hover:shadow-md"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50/80 border border-blue-200/70 rounded px-2 py-0.5 truncate">
+                          /b/{handle}/{bio.slug}
+                        </span>
+                        {bio.is_primary && (
+                          <span className="flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
+                            <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-600" /> Principal
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="mt-3 text-base font-bold text-zinc-900 truncate">{bio.title}</h3>
+                      <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">
+                        {bio.description || "Sem descrição"}
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-zinc-500">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-3.5 w-3.5 text-zinc-400" />
+                          <strong>{Number(bio.views || 0).toLocaleString("pt-BR")}</strong> views
+                        </span>
+                        <span className="h-3 w-px bg-zinc-200"></span>
+                        <button
+                          type="button"
+                          onClick={() => handleTabChange("leads")}
+                          className="flex items-center gap-1 text-zinc-600 hover:text-blue-600 font-medium"
+                          title="Ver leads desta bio"
+                        >
+                          <Users className="h-3.5 w-3.5 text-zinc-400" />
+                          <strong>{leadsCountForThisBio}</strong> leads
+                        </button>
+                        <span className="h-3 w-px bg-zinc-200"></span>
+                        <span className="capitalize">{bio.layout}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 border-t border-zinc-200 pt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleCopy(bioUrl, bio.id)}
+                          className="rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-600 hover:bg-zinc-100"
+                          title="Copiar Link"
+                        >
+                          {copiedSlug === bio.id ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                        <a
+                          href={bioUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-600 hover:bg-zinc-100"
+                          title="Abrir página pública"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                        {!bio.is_primary && (
+                          <button
+                            onClick={() => handleSetPrimary(bio.id)}
+                            className="rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-zinc-100"
+                            title="Definir como principal (/b/handle)"
+                          >
+                            <Star className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDelete(bio.id)}
+                          className="rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <Link
+                        href={`/dashboard/bio/${bio.id}`}
+                        className="flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 transition"
+                      >
+                        Editar
+                        <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setIsCreating(false)}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-1.5 text-xs font-semibold text-white shadow-sm"
-            >
-              Continuar para o Editor ➔
-            </button>
-          </div>
-        </form>
+        </div>
       )}
 
-      {/* Grid de Bio Pages */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {bios.length === 0 ? (
-          <div className="col-span-full rounded-xl border border-dashed border-zinc-300 p-12 text-center">
-            <Smartphone className="mx-auto h-10 w-10 text-zinc-400" />
-            <h3 className="mt-3 text-sm font-semibold text-zinc-900">Nenhuma Bio Page criada ainda</h3>
-            <p className="mt-1 text-xs text-zinc-500 max-w-sm mx-auto">
-              Crie sua primeira página de bio com botões, links de WhatsApp, redes sociais e layout customizável.
-            </p>
-            <button
-              onClick={() => setIsCreating(true)}
-              className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700"
-            >
-              Criar Primeira Bio Page
-            </button>
-          </div>
-        ) : (
-          bios.map((bio) => {
-            const bioUrl = `${origin}/b/${handle}/${bio.slug}`;
-            return (
-              <div
-                key={bio.id}
-                className="group relative flex flex-col justify-between rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-blue-400 hover:shadow-md"
-              >
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50/80 border border-blue-200/70 rounded px-2 py-0.5 truncate">
-                      /b/{handle}/{bio.slug}
-                    </span>
-                    {bio.is_primary && (
-                      <span className="flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
-                        <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-600" /> Principal
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="mt-3 text-base font-bold text-zinc-900 truncate">{bio.title}</h3>
-                  <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">
-                    {bio.description || "Sem descrição"}
-                  </p>
-
-                  <div className="mt-4 flex items-center gap-3 text-xs text-zinc-500">
-                    <span className="flex items-center gap-1">
-                      <Eye className="h-3.5 w-3.5 text-zinc-400" />
-                      <strong>{Number(bio.views || 0).toLocaleString("pt-BR")}</strong> views
-                    </span>
-                    <span className="h-3 w-px bg-zinc-200"></span>
-                    <span className="capitalize">Layout: {bio.layout}</span>
-                  </div>
-                </div>
-
-                <div className="mt-5 border-t border-zinc-200 pt-3 flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleCopy(bioUrl, bio.id)}
-                      className="rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-600 hover:bg-zinc-100"
-                      title="Copiar Link"
-                    >
-                      {copiedSlug === bio.id ? (
-                        <Check className="h-3.5 w-3.5 text-emerald-600" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                    <a
-                      href={bioUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-600 hover:bg-zinc-100"
-                      title="Abrir página pública"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                    {!bio.is_primary && (
-                      <button
-                        onClick={() => handleSetPrimary(bio.id)}
-                        className="rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-400 hover:text-amber-600 hover:bg-zinc-100"
-                        title="Definir como principal (/b/handle)"
-                      >
-                        <Star className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(bio.id)}
-                      className="rounded-lg border border-zinc-200 bg-white p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50"
-                      title="Excluir"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-
-                  <Link
-                    href={`/dashboard/bio/${bio.id}`}
-                    className="flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-zinc-800 transition"
-                  >
-                    Editar
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      {/* ABA 2: LEADS CAPTURADOS */}
+      {activeTab === "leads" && (
+        <BioLeadsTable
+          initialLeads={leads}
+          bios={bios.map((b) => ({ id: b.id, title: b.title, slug: b.slug }))}
+          handle={handle}
+          origin={origin}
+          onLeadDeleted={(deletedId) => {
+            setLeads((prev) => prev.filter((l) => l.id !== deletedId));
+          }}
+          onSwitchToBiosTab={() => handleTabChange("bios")}
+        />
+      )}
     </div>
   );
 }

@@ -1377,6 +1377,21 @@ export default function BioEditorClient({
                                   className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-600 focus:outline-none"
                                 />
                               </div>
+                              <div className="pt-1 flex items-center text-[11px] text-zinc-500">
+                                <span className="flex items-center gap-1.5 text-zinc-600">
+                                  <span>💡</span>
+                                  <span>
+                                    Os contatos cadastrados aqui são salvos em{" "}
+                                    <Link
+                                      href="/dashboard/bio?tab=leads"
+                                      className="font-semibold text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-0.5"
+                                    >
+                                      Dashboard &gt; Leads
+                                      <ExternalLink className="h-2.5 w-2.5 inline" />
+                                    </Link>
+                                  </span>
+                                </span>
+                              </div>
                             </div>
                           )}
                         </div>
