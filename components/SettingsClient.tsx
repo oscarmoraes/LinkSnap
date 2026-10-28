@@ -127,14 +127,13 @@ export default function SettingsClient({
     }
   };
 
-  const handleMercadoPagoCheckout = async () => {
+  const handlePixCheckout = async () => {
     setCheckoutLoading(true);
     setCheckoutError("");
 
     const planKey = `${selectedTier}_${billingCycle}`;
 
     try {
-      // 1. Tenta criar a ordem via Checkout Transparente (Orders API) com Pix imediato
       const orderRes = await fetch("/api/mercadopago/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,17 +142,34 @@ export default function SettingsClient({
 
       const orderData = await orderRes.json();
 
-      if (orderRes.ok && orderData.pix?.qrCodeBase64) {
+      if (!orderRes.ok) {
+        throw new Error(orderData.error || "Falha ao gerar Pix com Mercado Pago.");
+      }
+
+      if (orderData.pix?.qrCodeBase64) {
         setPixModalData({
           qrCode: orderData.pix.qrCode,
           qrCodeBase64: orderData.pix.qrCodeBase64,
           ticketUrl: orderData.pix.ticketUrl,
         });
         setPixModalOpen(true);
-        return;
+      } else {
+        throw new Error("QR Code Pix não retornado.");
       }
+    } catch (err: any) {
+      setCheckoutError(err.message || "Erro inesperado ao gerar Pix.");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
-      // 2. Se falhar na Orders API, usa a rota de preferência como fallback
+  const handleMercadoPagoCheckout = async () => {
+    setCheckoutLoading(true);
+    setCheckoutError("");
+
+    const planKey = `${selectedTier}_${billingCycle}`;
+
+    try {
       const res = await fetch("/api/mercadopago/create-preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -638,28 +654,47 @@ export default function SettingsClient({
                   </div>
                 )}
 
-                {/* Botão de Checkout Oficial */}
-                <button
-                  type="button"
-                  onClick={handleMercadoPagoCheckout}
-                  disabled={checkoutLoading}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#009EE3] hover:bg-[#0089C7] py-3 text-xs sm:text-sm font-bold text-white shadow-md shadow-blue-500/20 transition disabled:opacity-60"
-                >
-                  {checkoutLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Conectando ao Mercado Pago...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-4 w-4 fill-current shrink-0" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
-                      </svg>
-                      <span>Assinar via Mercado Pago</span>
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </>
-                  )}
-                </button>
+                {/* Botões de Pagamento: Pix Direto ou Cartão / Checkout Completo */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePixCheckout}
+                    disabled={checkoutLoading}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 py-3 text-xs sm:text-sm font-bold text-white shadow-md shadow-emerald-500/20 transition disabled:opacity-60"
+                  >
+                    {checkoutLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Gerando Pix...
+                      </>
+                    ) : (
+                      <>
+                        <QrCode className="h-4 w-4" />
+                        <span>Pagar com Pix</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleMercadoPagoCheckout}
+                    disabled={checkoutLoading}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#009EE3] hover:bg-[#0089C7] py-3 text-xs sm:text-sm font-bold text-white shadow-md shadow-blue-500/20 transition disabled:opacity-60"
+                  >
+                    {checkoutLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Carregando...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="h-4 w-4" />
+                        <span>Pagar com Cartão</span>
+                        <ExternalLink className="h-3 w-3 opacity-70" />
+                      </>
+                    )}
+                  </button>
+                </div>
 
                 {/* Selos de Confiança Mercado Pago */}
                 <div className="pt-1 flex flex-wrap items-center justify-between text-[10px] text-zinc-500 border-t border-zinc-100">
