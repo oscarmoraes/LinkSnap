@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -22,6 +23,8 @@ import {
   Crown,
   Info,
   QrCode,
+  Globe,
+  ChevronRight,
 } from "lucide-react";
 import { PixCheckoutModal } from "@/components/PixCheckoutModal";
 
@@ -523,6 +526,17 @@ export default function SettingsClient({
                 )}
 
                 <div className="pt-2">
+                  <Link
+                    href="/dashboard/settings/domains"
+                    className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100/70 px-3.5 py-2 text-xs font-bold text-blue-800 transition shadow-2xs"
+                  >
+                    <Globe className="h-4 w-4 text-blue-600" />
+                    <span>Configurar Domínios Próprios</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+
+                <div className="pt-1">
                   <button
                     type="button"
                     onClick={() => handleSimulateActivation("free")}

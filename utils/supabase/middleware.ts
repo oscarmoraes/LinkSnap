@@ -44,6 +44,83 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  // 1. Roteamento Multi-Tenant de Domínios Customizados (Plano PRO)
+  const testHost = request.nextUrl.searchParams.get("__test_host");
+  const host = (testHost || request.headers.get("x-forwarded-host") || request.headers.get("host") || "")
+    .toLowerCase()
+    .split(":")[0];
+
+  const isSystemHost =
+    !host ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "linksnap.com.br" ||
+    host === "linksnap-xi.vercel.app" ||
+    host.endsWith(".vercel.app");
+
+  if (!isSystemHost) {
+    // É uma requisição vinda de um domínio próprio do cliente
+    try {
+      const { data: customDomain } = await supabase
+        .from("custom_domains")
+        .select(`
+          id,
+          domain,
+          target_id,
+          user_id,
+          bio_pages!target_id (
+            slug,
+            profiles (
+              handle
+            )
+          )
+        `)
+        .eq("domain", host)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (customDomain) {
+        let handle = "";
+        let slug = "";
+
+        const bp: any = customDomain.bio_pages;
+        if (bp) {
+          slug = bp.slug;
+          handle = bp.profiles?.handle;
+        }
+
+        // Se target_id não estava setado, busca a bio primária do dono do domínio
+        if (!handle || !slug) {
+          const { data: primaryBio } = await supabase
+            .from("bio_pages")
+            .select("slug, profiles(handle)")
+            .eq("user_id", customDomain.user_id)
+            .eq("is_primary", true)
+            .maybeSingle();
+
+          if (primaryBio) {
+            slug = primaryBio.slug;
+            // @ts-ignore
+            handle = primaryBio.profiles?.handle;
+          }
+        }
+
+        if (handle && slug) {
+          const pathname = request.nextUrl.pathname;
+          // Se for a raiz do domínio customizado, reescreve diretamente para a Bio pública do cliente!
+          if (pathname === "/" || pathname === "") {
+            const rewriteUrl = request.nextUrl.clone();
+            rewriteUrl.pathname = `/b/${handle}/${slug}`;
+            return NextResponse.rewrite(rewriteUrl);
+          }
+        }
+      }
+    } catch (domainErr) {
+      console.warn("Erro ao processar roteamento de domínio customizado:", domainErr);
+    }
+  }
+
+  // 2. Autenticação e Proteção do Dashboard
   const {
     data: { user },
   } = await supabase.auth.getUser();

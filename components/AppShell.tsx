@@ -24,6 +24,7 @@ import {
   Plus,
   Zap,
   ExternalLink,
+  Globe,
 } from "lucide-react";
 
 interface AppShellProps {
@@ -123,6 +124,7 @@ export default function AppShell({
     if (pathname === "/dashboard/cards") return "Carteirinhas";
     if (pathname.startsWith("/dashboard/cards/")) return "Equipe & Crachás";
     if (pathname === "/dashboard/analytics") return "Analytics";
+    if (pathname === "/dashboard/settings/domains") return "Domínios Próprios";
     if (pathname === "/dashboard/settings") return "Configurações";
     if (pathname === "/dashboard/tools/whatsapp") return "WhatsApp wa.me";
     if (pathname === "/dashboard/tools/pix") return "Pix BR Code";
@@ -430,11 +432,38 @@ export default function AppShell({
           </div>
 
           {/* RODAPÉ DA SIDEBAR: CONFIGURAÇÕES & STATUS */}
-          <div className="space-y-2 border-t border-zinc-200 pt-3">
+          <div className="space-y-1.5 border-t border-zinc-200 pt-3">
+            <Link
+              href="/dashboard/settings/domains"
+              className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                pathname === "/dashboard/settings/domains"
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <Globe
+                  className={`h-4 w-4 shrink-0 ${
+                    pathname === "/dashboard/settings/domains"
+                      ? "text-blue-400"
+                      : "text-blue-600"
+                  }`}
+                />
+                <span>Domínios</span>
+              </span>
+              <span
+                className={`rounded px-1.5 py-0.2 text-[9px] font-extrabold ${
+                  isPro ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                PRO
+              </span>
+            </Link>
+
             <Link
               href="/dashboard/settings"
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                isActive("/dashboard/settings")
+                pathname === "/dashboard/settings"
                   ? "bg-zinc-900 text-white"
                   : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
               }`}
@@ -574,12 +603,40 @@ export default function AppShell({
               </div>
 
               {/* Rodapé Mobile Drawer */}
-              <div className="border-t border-zinc-200 pt-3 space-y-2">
+              <div className="border-t border-zinc-200 pt-3 space-y-1.5">
+                <Link
+                  href="/dashboard/settings/domains"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold ${
+                    pathname === "/dashboard/settings/domains"
+                      ? "bg-zinc-900 text-white"
+                      : "text-zinc-700 hover:bg-zinc-100"
+                  }`}
+                >
+                  <span className="flex items-center gap-2.5">
+                    <Globe
+                      className={`h-4 w-4 ${
+                        pathname === "/dashboard/settings/domains"
+                          ? "text-blue-400"
+                          : "text-blue-600"
+                      }`}
+                    />
+                    <span>Domínios Próprios</span>
+                  </span>
+                  <span
+                    className={`rounded px-1.5 py-0.2 text-[9px] font-extrabold ${
+                      isPro ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-800"
+                    }`}
+                  >
+                    PRO
+                  </span>
+                </Link>
+
                 <Link
                   href="/dashboard/settings"
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold ${
-                    isActive("/dashboard/settings")
+                    pathname === "/dashboard/settings"
                       ? "bg-zinc-900 text-white"
                       : "text-zinc-700 hover:bg-zinc-100"
                   }`}
