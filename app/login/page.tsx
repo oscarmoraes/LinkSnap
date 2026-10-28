@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, CheckCircle2, ShieldCheck } from "lucide-react";
 
 function LoginForm() {
   const router = useRouter();
@@ -21,7 +21,7 @@ function LoginForm() {
     if (errorParam === "auth-failed") {
       setMessage({
         type: "error",
-        text: "Falha ao validar a autenticação com o provedor. Tente novamente.",
+        text: "Falha ao validar a autenticação com o provedor. Verifique se o domínio está autorizado e tente novamente.",
       });
     }
   }, [searchParams]);
@@ -69,86 +69,81 @@ function LoginForm() {
     }
   };
 
-  const handleOAuth = async (provider: "github" | "google") => {
+  const handleGoogleAuth = async () => {
     setLoading(true);
     setMessage(null);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
       if (error) throw error;
     } catch (err: any) {
       setMessage({
         type: "error",
-        text: err.message || `Falha ao autenticar com ${provider}.`,
+        text: err.message || "Falha ao conectar com o Google.",
       });
       setLoading(false);
     }
   };
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 bg-black text-[#ededed]">
+    <main className="relative flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 bg-[#F1F5F9] text-zinc-900">
       <Link
         href="/"
-        className="absolute left-6 top-6 flex items-center gap-2 rounded-xl border border-[#222222] bg-[#0c0d0e] px-4 py-2 text-sm text-neutral-400 backdrop-blur-md transition hover:bg-[#141517] hover:text-white"
+        className="absolute left-6 top-6 inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-600 shadow-xs hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 transition"
       >
         <ArrowLeft className="h-4 w-4" />
         Voltar para a Home
       </Link>
 
       <div className="w-full max-w-md">
-        <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-2xl font-black text-white shadow-lg shadow-blue-900/40">
-              L
-            </span>
-            <span className="text-2xl font-bold tracking-tight text-white">LinkSnap</span>
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-block transition hover:opacity-95">
+            <img
+              src="/brand/logo-full-light.svg"
+              alt="LinkSnap"
+              className="h-10 mx-auto"
+            />
           </Link>
-          <h1 className="mt-6 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {isSignUp ? "Crie sua conta SaaS" : "Acesse seu painel"}
+          <h1 className="mt-6 text-2xl font-black tracking-tight text-zinc-900 sm:text-3xl">
+            {isSignUp ? "Crie sua conta no LinkSnap" : "Acesse seu painel"}
           </h1>
-          <p className="mt-2 text-sm text-neutral-400">
+          <p className="mt-2 text-sm text-zinc-500">
             {isSignUp
-              ? "Comece a encurtar, personalizar e analisar seus links."
-              : "Gerencie seus links curtos, QR Codes e métricas em tempo real."}
+              ? "Encurtador de alta velocidade, Bio Pro e métricas em tempo real."
+              : "Gerencie seus links curtos, páginas de bio e conversões."}
           </p>
         </div>
 
-        <div className="mt-8 rounded-3xl border border-[#222222] bg-[#0c0d0e] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+        <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-xl shadow-zinc-900/5 sm:p-8">
           {message && (
             <div
-              className={`mb-6 rounded-xl border p-4 text-sm ${
+              className={`mb-6 rounded-xl border p-4 text-xs font-medium ${
                 message.type === "success"
-                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                  : "border-rose-500/20 bg-rose-500/10 text-rose-300"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-rose-200 bg-rose-50 text-rose-800"
               }`}
             >
               {message.text}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Botão Único Google OAuth */}
+          <div>
             <button
               type="button"
-              onClick={() => handleOAuth("github")}
+              onClick={handleGoogleAuth}
               disabled={loading}
-              className="flex items-center justify-center gap-2 rounded-xl border border-[#222222] bg-black px-4 py-2.5 text-sm font-medium text-neutral-200 transition hover:bg-[#141517] disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-3 rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold text-zinc-700 shadow-xs transition hover:bg-zinc-50 hover:border-zinc-400 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-              </svg>
-              GitHub
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOAuth("google")}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 rounded-xl border border-[#222222] bg-black px-4 py-2.5 text-sm font-medium text-neutral-200 transition hover:bg-[#141517] disabled:opacity-60"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -166,13 +161,13 @@ function LoginForm() {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              Google
+              <span>Continuar com o Google</span>
             </button>
           </div>
 
           <div className="relative my-6 flex items-center justify-center">
-            <div className="w-full border-t border-[#222222]"></div>
-            <span className="absolute bg-[#0c0d0e] px-3 text-xs uppercase tracking-wider text-neutral-500">
+            <div className="w-full border-t border-zinc-200"></div>
+            <span className="absolute bg-white px-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
               ou com e-mail
             </span>
           </div>
@@ -180,52 +175,48 @@ function LoginForm() {
           <form onSubmit={handleAuth} className="space-y-4">
             {isSignUp && (
               <div>
-                <label className="block text-xs font-medium text-neutral-300">Nome Completo</label>
-                <div className="relative mt-1">
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Seu nome"
-                    className="w-full rounded-xl border border-[#222222] bg-black px-4 py-2.5 text-sm text-white placeholder:text-neutral-600 focus:border-blue-500 focus:outline-none"
-                  />
-                </div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">Nome Completo</label>
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Seu nome ou marca"
+                  className="w-full rounded-xl border border-zinc-300 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition"
+                />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-neutral-300">E-mail</label>
-              <div className="relative mt-1">
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="voce@exemplo.com"
-                  className="w-full rounded-xl border border-[#222222] bg-black px-4 py-2.5 text-sm text-white placeholder:text-neutral-600 focus:border-blue-500 focus:outline-none"
-                />
-              </div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">E-mail</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="voce@exemplo.com"
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition"
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-300">Senha</label>
-              <div className="relative mt-1">
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-[#222222] bg-black px-4 py-2.5 text-sm text-white placeholder:text-neutral-600 focus:border-blue-500 focus:outline-none"
-                />
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-zinc-700">Senha</label>
               </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-zinc-300 bg-zinc-50/50 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition"
+              />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -243,14 +234,14 @@ function LoginForm() {
             </button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-neutral-400">
+          <div className="mt-6 text-center text-xs text-zinc-500">
             {isSignUp ? (
               <p>
                 Já tem uma conta?{" "}
                 <button
                   type="button"
                   onClick={() => setIsSignUp(false)}
-                  className="font-medium text-blue-400 hover:text-blue-300"
+                  className="font-semibold text-blue-600 hover:text-blue-700 underline-offset-4 hover:underline"
                 >
                   Fazer login
                 </button>
@@ -261,13 +252,18 @@ function LoginForm() {
                 <button
                   type="button"
                   onClick={() => setIsSignUp(true)}
-                  className="font-medium text-blue-400 hover:text-blue-300"
+                  className="font-semibold text-blue-600 hover:text-blue-700 underline-offset-4 hover:underline"
                 >
                   Cadastre-se grátis
                 </button>
               </p>
             )}
           </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-zinc-400">
+          <ShieldCheck className="h-4 w-4 text-emerald-600" />
+          <span>Autenticação segura via Supabase Auth & Google SSL</span>
         </div>
       </div>
     </main>
@@ -276,7 +272,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-ink" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#F1F5F9]" />}>
       <LoginForm />
     </Suspense>
   );

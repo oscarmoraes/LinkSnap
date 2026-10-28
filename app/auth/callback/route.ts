@@ -10,11 +10,27 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(new URL(next, requestUrl.origin));
+      const forwardedHost = request.headers.get("x-forwarded-host");
+      const isLocalEnv = process.env.NODE_ENV === "development";
+      if (isLocalEnv) {
+        return NextResponse.redirect(`${requestUrl.origin}${next}`);
+      } else if (forwardedHost) {
+        return NextResponse.redirect(`https://${forwardedHost}${next}`);
+      } else {
+        return NextResponse.redirect(`${requestUrl.origin}${next}`);
+      }
     }
     console.error("Falha ao trocar código por sessão:", error.message);
   }
 
   // Se falhar, redireciona para login com erro
-  return NextResponse.redirect(new URL("/login?error=auth-failed", requestUrl.origin));
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const isLocalEnv = process.env.NODE_ENV === "development";
+  const redirectOrigin = isLocalEnv
+    ? requestUrl.origin
+    : forwardedHost
+    ? `https://${forwardedHost}`
+    : requestUrl.origin;
+
+  return NextResponse.redirect(`${redirectOrigin}/login?error=auth-failed`);
 }
