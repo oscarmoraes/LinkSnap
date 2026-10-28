@@ -53,12 +53,17 @@ export async function POST(request: Request) {
     const firstName = nameParts[0] || "Cliente";
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "LinkSnap";
 
+    // Compactar e sanitizar external_reference para respeitar o limite de 64 caracteres da Orders API
+    const cleanUserId = user.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 16);
+    const compactTimestamp = Date.now().toString().slice(-8);
+    const externalReference = `ls_${cleanUserId}_${planKey}_${compactTimestamp}`.slice(0, 64);
+
     // Construção do payload da nova Orders API (/v1/orders)
     const orderPayload: any = {
       type: "online",
       processing_mode: "automatic",
       total_amount: amountFormatted,
-      external_reference: `linksnap_${user.id}_${planKey}_${Date.now()}`,
+      external_reference: externalReference,
       payer: {
         email: user.email || "usuario@linksnap.com.br",
         first_name: firstName,
