@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="snaplink-bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+    <filter id="snap-glow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0F172A" flood-opacity="0.2" />
+    </filter>
+  </defs>
+  <!-- Squircle Container rx="22%" -->
+  <rect width="64" height="64" rx="14" fill="url(#snaplink-bg)" />
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.25" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="1.5" />
+  <!-- Geometric Link Loop forming an "L" with a Snap Bolt -->
+  <g filter="url(#snap-glow)">
+    <path
+      d="M22 17V38C22 41.3137 24.6863 44 28 44H43"
+      stroke="#FFFFFF"
+      stroke-width="6.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M35 16L27 29H37L31 41"
+      stroke="#FFFFFF"
+      stroke-width="5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <!-- Emerald Pulse Dot (#10B981) -->
+    <circle cx="44" cy="20" r="4.5" fill="#10B981" stroke="#FFFFFF" stroke-width="2" />
+  </g>
+</svg>
