@@ -62,7 +62,47 @@ export async function POST(request: Request) {
       console.warn("Erro ao consultar CNAME DNS:", dnsErr);
     }
 
-    // 2. Se CNAME ainda não respondeu, checa registro TXT de desafio
+    // 2. Se Cloudflare Proxy estiver ativo ou mascarando o CNAME, verifica conexão HTTP direta
+    if (!isVerified) {
+      try {
+        const pingRes = await fetch(`https://${domainName}`, {
+          method: "HEAD",
+          cache: "no-store",
+          headers: { "x-linksnap-verify": "true" },
+        });
+        if (
+          pingRes.headers.get("x-vercel-id") ||
+          pingRes.headers.get("x-matched-path") ||
+          (pingRes.headers.get("server") || "").toLowerCase().includes("vercel")
+        ) {
+          isVerified = true;
+        }
+      } catch (pingErr) {
+        // Ignora falha temporária de handshake
+      }
+    }
+
+    // 3. Consulta registro A caso o usuário tenha apontado a raiz para 76.76.21.21
+    if (!isVerified) {
+      try {
+        const aUrl = `https://dns.google/resolve?name=${encodeURIComponent(domainName)}&type=A`;
+        const aRes = await fetch(aUrl, { cache: "no-store" });
+        if (aRes.ok) {
+          const aData = await aRes.json();
+          const answers = aData.Answer || [];
+          for (const ans of answers) {
+            if (ans.data === "76.76.21.21") {
+              isVerified = true;
+              break;
+            }
+          }
+        }
+      } catch (aErr) {
+        console.warn("Erro ao consultar registro A DNS:", aErr);
+      }
+    }
+
+    // 4. Se ainda não respondeu, checa registro TXT de desafio
     if (!isVerified && domainRecord.verification_token) {
       try {
         const challengeHost = `_linksnap-challenge.${domainName}`;
