@@ -109,7 +109,7 @@ export default async function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* 2. BARRA DE STATUS DO PLANO ATUAL */}
+      {/* 2. BARRA DE STATUS DO PLANO E COTAS */}
       <div
         className={`rounded-2xl border p-4 sm:p-5 shadow-xs transition-all ${
           isPro
@@ -117,7 +117,7 @@ export default async function DashboardOverviewPage() {
             : "border-blue-100 bg-linear-to-r from-blue-50/70 via-indigo-50/40 to-slate-50"
         }`}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div
               className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
@@ -146,11 +146,11 @@ export default async function DashboardOverviewPage() {
               <p className="mt-1 text-xs text-zinc-600">
                 {isPro ? (
                   <span>
-                    <strong>Bios ilimitadas ativas</strong> • Links com sua marca (/r/@{userHandle}/...) • Carteirinhas liberadas • Analytics avançado em tempo real.
+                    <strong>Bios ilimitadas ativas</strong> • Links com sua marca (/r/@{userHandle}/...) • Domínios Próprios • Senha & Agendamento liberados.
                   </span>
                 ) : (
                   <span>
-                    <strong>1 Bio ativa</strong> • 20 links inclusos • Faça upgrade para desbloquear links com @{userHandle}, vitrine de produtos e domínio próprio.
+                    <strong>1 Bio ativa</strong> • 20 links inclusos • Faça upgrade para desbloquear links com @{userHandle}, senha, agendamento e domínio próprio.
                   </span>
                 )}
               </p>
@@ -180,6 +180,79 @@ export default async function DashboardOverviewPage() {
             </Link>
           </div>
         </div>
+
+        {/* Indicadores de Consumo de Cotas */}
+        {!isPro ? (
+          <div className="mt-4 pt-4 border-t border-blue-100/80 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Cota de Links */}
+            <div>
+              <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-700 mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Link2 className="h-3.5 w-3.5 text-blue-600" />
+                  Links Encurtados
+                </span>
+                <span className="text-zinc-600 font-mono">
+                  {links.length} / 20 ({Math.min(100, Math.round((links.length / 20) * 100))}%)
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-blue-200/60 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    links.length >= 20
+                      ? "bg-red-500"
+                      : links.length >= 15
+                      ? "bg-amber-500"
+                      : "bg-blue-600"
+                  }`}
+                  style={{ width: `${Math.min(100, (links.length / 20) * 100)}%` }}
+                />
+              </div>
+              {links.length >= 20 && (
+                <p className="mt-1 text-[10px] font-bold text-red-600">
+                  ⚠️ Limite de 20 links atingido. Novos links bloqueados até o upgrade.
+                </p>
+              )}
+            </div>
+
+            {/* Cota de Bio Pages */}
+            <div>
+              <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-700 mb-1.5">
+                <span className="flex items-center gap-1.5">
+                  <Smartphone className="h-3.5 w-3.5 text-purple-600" />
+                  Bio Pages
+                </span>
+                <span className="text-zinc-600 font-mono">
+                  {bios.length} / 1 ({Math.min(100, Math.round((bios.length / 1) * 100))}%)
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-blue-200/60 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    bios.length >= 1 ? "bg-amber-500" : "bg-purple-600"
+                  }`}
+                  style={{ width: `${Math.min(100, (bios.length / 1) * 100)}%` }}
+                />
+              </div>
+              {bios.length >= 1 && (
+                <p className="mt-1 text-[10px] text-zinc-500">
+                  Faça upgrade para PRO para criar até 5 Bio Pages e ter domínio próprio.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 pt-3 border-t border-amber-200/60 flex flex-wrap items-center gap-4 text-[11px] font-semibold text-amber-950">
+            <span className="flex items-center gap-1 text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md border border-emerald-200">
+              ✓ Links Ilimitados ({links.length} criados)
+            </span>
+            <span className="flex items-center gap-1 text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md border border-blue-200">
+              ✓ {bios.length} de 5 Bio Pages utilizadas
+            </span>
+            <span className="flex items-center gap-1 text-purple-700 bg-purple-100/70 px-2 py-0.5 rounded-md border border-purple-200">
+              ✓ Domínios Próprios Liberados
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 3. CARD DE ONBOARDING GUIADO EM 3 PASSOS */}

@@ -18,7 +18,7 @@ export default async function BioEditorPage({
   if (!user) redirect("/login");
 
   const [profileRes, pageRes, blocksRes, leadsRes] = await Promise.all([
-    supabase.from("profiles").select("handle").eq("id", user.id).single(),
+    supabase.from("profiles").select("handle, plan_tier").eq("id", user.id).single(),
     supabase
       .from("bio_pages")
       .select("*")
@@ -42,6 +42,7 @@ export default async function BioEditorPage({
   }
 
   const handle = profileRes.data?.handle || user.email?.split("@")[0] || "user";
+  const planTier = profileRes.data?.plan_tier || "free";
 
   const headersList = headers();
   const host = headersList.get("host") || "localhost:3000";
@@ -55,6 +56,7 @@ export default async function BioEditorPage({
       initialLeads={leadsRes.data || []}
       handle={handle}
       origin={origin}
+      planTier={planTier}
     />
   );
 }

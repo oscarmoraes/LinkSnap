@@ -29,22 +29,53 @@ export async function generateMetadata({
   const supabase = getSupabase();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, handle, full_name")
+    .select("id, handle, full_name, avatar_url")
     .eq("handle", params.handle.toLowerCase())
     .single();
 
-  if (!profile) return { title: "Perfil não encontrado" };
+  if (!profile) return { title: "Perfil não encontrado — LinkSnap" };
 
   const { data: page } = await supabase
     .from("bio_pages")
-    .select("title, description")
+    .select("title, description, avatar_url")
     .eq("user_id", profile.id)
     .eq("slug", params.slug.toLowerCase())
     .single();
 
+  const title = page?.title || profile.full_name || `@${params.handle}`;
+  const description =
+    page?.description ||
+    `Conheça os links oficiais, Pix e catálogo de @${profile.handle} no LinkSnap.`;
+
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://linksnap-xi.vercel.app";
+  const ogImageUrl = `${baseUrl}/api/og/bio?handle=${params.handle.toLowerCase()}&slug=${params.slug.toLowerCase()}`;
+  const bioUrl = `${baseUrl}/b/${params.handle.toLowerCase()}/${params.slug.toLowerCase()}`;
+
   return {
-    title: `${page?.title || profile.full_name || params.handle} — LinkSnap Bio`,
-    description: page?.description || "Links oficiais, produtos, Pix e canais de contato.",
+    title: `${title} — LinkSnap Bio`,
+    description,
+    openGraph: {
+      title: `${title} — LinkSnap Bio`,
+      description,
+      url: bioUrl,
+      siteName: "LinkSnap",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${title} no LinkSnap`,
+        },
+      ],
+      locale: "pt_BR",
+      type: "profile",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} — LinkSnap Bio`,
+      description,
+      images: [ogImageUrl],
+    },
   };
 }
 
@@ -55,14 +86,16 @@ export default async function PublicBioSlugPage({
 }) {
   const supabase = getSupabase();
 
-  // 1. Busca perfil pelo handle
+  // 1. Busca perfil pelo handle com plano
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, handle, full_name, avatar_url")
+    .select("id, handle, full_name, avatar_url, plan_tier")
     .eq("handle", params.handle.toLowerCase())
     .single();
 
   if (!profile) notFound();
+
+  const isPro = profile.plan_tier === "pro" || profile.plan_tier === "enterprise";
 
   // 2. Busca bio_page pelo slug
   const { data: page } = await supabase
@@ -115,7 +148,14 @@ export default async function PublicBioSlugPage({
     hideBranding: false,
   };
 
+  // Trava de White-Label: só oculta a marca se o criador for PRO ou Enterprise
+  const hideBranding = isPro && Boolean(page.hide_branding || theme.hideBranding);
+
   const avatar = page.avatar_url || profile.avatar_url;
+
+  // Sanitizar IDs de rastreamento
+  const cleanPixelId = isPro && page.meta_pixel_id ? page.meta_pixel_id.replace(/[^a-zA-Z0-9_-]/g, "") : null;
+  const cleanGtmId = isPro && page.gtm_id ? page.gtm_id.replace(/[^a-zA-Z0-9_-]/g, "") : null;
 
   return (
     <div
@@ -125,6 +165,50 @@ export default async function PublicBioSlugPage({
         color: theme.text || "#111827",
       }}
     >
+      {/* Injeção de Meta (Facebook) Pixel */}
+      {cleanPixelId && (
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              !function(f,b,e,v,n,t,s)
+              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+              n.queue=[];t=b.createElement(e);t.async=!0;
+              t.src=v;s=b.getElementsByTagName(e)[0];
+              s.parentNode.insertBefore(t,s)}(window, document,'script',
+              'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '${cleanPixelId}');
+              fbq('track', 'PageView');
+            `,
+          }}
+        />
+      )}
+
+      {/* Injeção de Google Tag Manager (GTM) */}
+      {cleanGtmId && (
+        <>
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+                new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+                'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+                })(window,document,'script','dataLayer','${cleanGtmId}');
+              `,
+            }}
+          />
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${cleanGtmId}`}
+              height="0"
+              width="0"
+              style={{ display: "none", visibility: "hidden" }}
+            />
+          </noscript>
+        </>
+      )}
       <div className="w-full max-w-md mx-auto pt-8 pb-12 flex flex-col items-center">
         {/* Avatar */}
         <div className="relative">
@@ -178,7 +262,7 @@ export default async function PublicBioSlugPage({
         />
       </div>
 
-      {!theme.hideBranding && (
+      {!hideBranding && (
         <footer className="py-4 text-center">
           <a
             href="/"

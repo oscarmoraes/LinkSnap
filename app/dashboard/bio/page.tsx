@@ -17,7 +17,7 @@ export default async function BioPage({
   if (!user) return null;
 
   const [profileRes, biosRes, leadsRes] = await Promise.all([
-    supabase.from("profiles").select("handle").eq("id", user.id).single(),
+    supabase.from("profiles").select("handle, plan_tier").eq("id", user.id).single(),
     supabase
       .from("bio_pages")
       .select("id, slug, title, description, layout, is_primary, is_active, views, created_at")
@@ -31,6 +31,7 @@ export default async function BioPage({
   ]);
 
   const handle = profileRes.data?.handle || user.email?.split("@")[0] || "user";
+  const planTier = profileRes.data?.plan_tier || "free";
   const bios = biosRes.data || [];
   const leads = (leadsRes.data || []) as any;
 
@@ -46,6 +47,7 @@ export default async function BioPage({
       handle={handle}
       origin={origin}
       userId={user.id}
+      planTier={planTier}
       defaultTab={searchParams?.tab === "leads" ? "leads" : "bios"}
     />
   );

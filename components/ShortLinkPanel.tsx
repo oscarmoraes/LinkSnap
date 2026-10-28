@@ -14,6 +14,7 @@ interface ShortLinkPanelProps {
   customSlug: string;
   onCustomSlugChange: (slug: string) => void;
   userHandle?: string;
+  isPro?: boolean;
   onManualCreate?: () => void;
 }
 
@@ -27,6 +28,7 @@ export default function ShortLinkPanel({
   customSlug,
   onCustomSlugChange,
   userHandle,
+  isPro = false,
   onManualCreate,
 }: ShortLinkPanelProps) {
   const [copied, setCopied] = useState(false);
@@ -77,14 +79,25 @@ export default function ShortLinkPanel({
             </button>
             <button
               type="button"
-              onClick={() => onScopeChange("branded")}
-              className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+              onClick={() => {
+                if (!isPro) {
+                  alert("Links com marca própria (/r/@handle/...) são exclusivos do plano PRO.");
+                  return;
+                }
+                onScopeChange("branded");
+              }}
+              className={`px-2 py-0.5 rounded-md font-medium transition-colors flex items-center gap-1 ${
                 scope === "branded"
                   ? "bg-blue-600 text-white shadow-xs"
                   : "text-zinc-600 hover:text-zinc-900"
               }`}
             >
-              Com sua marca (/r/@{userHandle || "você"}/...)
+              <span>Com sua marca (/r/@{userHandle || "você"}/...)</span>
+              {!isPro && (
+                <span className="rounded bg-amber-200 px-1 py-0.2 text-[9px] font-bold text-amber-900">
+                  PRO
+                </span>
+              )}
             </button>
           </div>
         )}

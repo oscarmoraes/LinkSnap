@@ -26,7 +26,22 @@ import {
   Wifi,
   Compass,
   Sparkles,
+  Lock,
+  Calendar,
+  Clock,
+  Shield,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import Link from "next/link";
+
+async function hashPassword(str: string): Promise<string> {
+  const enc = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export interface LinkItem {
   id: string;
@@ -41,6 +56,9 @@ export interface LinkItem {
   source_type?: string | null;
   link_scope?: "global" | "branded" | null;
   branded_handle?: string | null;
+  password_hash?: string | null;
+  starts_at?: string | null;
+  expires_at?: string | null;
   created_at: string;
 }
 
@@ -49,12 +67,15 @@ export default function LinksManagerClient({
   origin,
   userId,
   userHandle,
+  planTier = "free",
 }: {
   initialLinks: LinkItem[];
   origin: string;
   userId: string;
   userHandle: string;
+  planTier?: string;
 }) {
+  const isPro = planTier === "pro" || planTier === "enterprise";
   const supabase = createClient();
   const [links, setLinks] = useState<LinkItem[]>(initialLinks);
 
@@ -64,6 +85,12 @@ export default function LinksManagerClient({
   const [tagsInput, setTagsInput] = useState("");
   const [scope, setScope] = useState<"global" | "branded">("global");
   const [loading, setLoading] = useState(false);
+
+  // Recursos Avançados (PRO)
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [password, setPassword] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
 
   // Interações
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -158,6 +185,31 @@ export default function LinksManagerClient({
         : [];
 
       const isBranded = scope === "branded";
+      if (isBranded && !isPro) {
+        throw new Error("Links com marca própria (/r/@handle/...) são exclusivos do plano PRO.");
+      }
+
+      if (!isPro && links.length >= 20) {
+        throw new Error("Limite de 20 links do plano Free atingido. Faça upgrade para o LinkSnap PRO.");
+      }
+
+      let passwordHash: string | null = null;
+      if (password.trim()) {
+        if (!isPro) throw new Error("A proteção por senha é um recurso exclusivo do plano PRO.");
+        passwordHash = await hashPassword(password.trim());
+      }
+
+      let parsedStartsAt: string | null = null;
+      if (startsAt) {
+        if (!isPro) throw new Error("O agendamento de links é um recurso exclusivo do plano PRO.");
+        parsedStartsAt = new Date(startsAt).toISOString();
+      }
+
+      let parsedExpiresAt: string | null = null;
+      if (expiresAt) {
+        if (!isPro) throw new Error("A data de expiração de links é um recurso exclusivo do plano PRO.");
+        parsedExpiresAt = new Date(expiresAt).toISOString();
+      }
 
       const { data, error } = await supabase
         .from("links")
@@ -171,6 +223,9 @@ export default function LinksManagerClient({
           source_type: "direct",
           link_scope: isBranded ? "branded" : "global",
           branded_handle: isBranded ? userHandle : null,
+          password_hash: passwordHash,
+          starts_at: parsedStartsAt,
+          expires_at: parsedExpiresAt,
         })
         .select()
         .single();
@@ -187,6 +242,9 @@ export default function LinksManagerClient({
         setLongUrl("");
         setCustomSlug("");
         setTagsInput("");
+        setPassword("");
+        setStartsAt("");
+        setExpiresAt("");
 
         const fullUrl = getFullUrl(data);
         setStatusMsg({ type: "success", text: `Link ${fullUrl} criado com sucesso!` });
@@ -374,10 +432,47 @@ export default function LinksManagerClient({
             Gerencie, categorize, edite e acompanhe o engajamento dos seus links curtos e campanhas.
           </p>
         </div>
-        <div className="text-xs text-zinc-500">
-          Total de links: <strong className="text-zinc-900">{links.length}</strong>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-zinc-500">
+            Total de links: <strong className="text-zinc-900">{links.length}</strong>
+            {!isPro && <span className="text-zinc-400"> / 20</span>}
+          </span>
+          <span
+            className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+              isPro
+                ? "bg-amber-100 text-amber-900 border border-amber-200"
+                : "bg-zinc-100 text-zinc-700 border border-zinc-200"
+            }`}
+          >
+            {isPro ? "PRO ⚡" : "Free"}
+          </span>
         </div>
       </div>
+
+      {/* Alerta de Cota Atingida no Plano Free */}
+      {!isPro && links.length >= 20 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-500 text-white">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-amber-900">
+                Limite do Plano Free Atingido (20/20 links)
+              </h4>
+              <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
+                Você utilizou todos os 20 links inclusos na sua conta gratuita. Faça upgrade para o <strong>LinkSnap PRO</strong> para criar links ilimitados, usar links com sua marca, proteção por senha e agendamento.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/settings#plan"
+            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition"
+          >
+            Fazer Upgrade PRO ⚡
+          </Link>
+        </div>
+      )}
 
       {/* Formulário de Criação em Página Inteira */}
       <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -400,14 +495,28 @@ export default function LinksManagerClient({
             </button>
             <button
               type="button"
-              onClick={() => setScope("branded")}
-              className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+              onClick={() => {
+                if (!isPro) {
+                  setStatusMsg({
+                    type: "error",
+                    text: "Links com marca própria (/r/@handle/...) são exclusivos do plano PRO. Faça upgrade para desbloquear!",
+                  });
+                  return;
+                }
+                setScope("branded");
+              }}
+              className={`px-2 py-0.5 rounded-md font-medium transition-colors flex items-center gap-1 ${
                 scope === "branded"
                   ? "bg-white text-blue-700 shadow-xs"
                   : "text-zinc-500 hover:text-zinc-800"
               }`}
             >
-              Com sua marca (/r/@{userHandle}/...)
+              <span>Com sua marca (/r/@{userHandle}/...)</span>
+              {!isPro && (
+                <span className="rounded bg-amber-200/80 px-1 py-0.2 text-[9px] font-bold text-amber-900 border border-amber-300">
+                  PRO
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -460,14 +569,94 @@ export default function LinksManagerClient({
             </div>
           </div>
 
+          {/* Opções Avançadas: Senha e Agendamento */}
+          <div className="pt-2 border-t border-zinc-100">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-600 hover:text-zinc-900 transition"
+            >
+              <Shield className="h-3.5 w-3.5 text-blue-600" />
+              <span>Proteção por Senha & Agendamento de Datas</span>
+              {!isPro && (
+                <span className="rounded bg-amber-100 px-1 py-0.2 text-[9px] font-bold text-amber-800 border border-amber-200">
+                  PRO 🔒
+                </span>
+              )}
+              {showAdvanced ? (
+                <ChevronUp className="h-3.5 w-3.5 text-zinc-400" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
+              )}
+            </button>
+
+            {showAdvanced && (
+              <div className="mt-3 p-3.5 rounded-xl border border-zinc-200 bg-zinc-50/70 space-y-3">
+                {!isPro && (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-amber-900 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
+                    <span>
+                      Proteção por Senha e Agendamento são recursos exclusivos para assinantes <strong>PRO</strong>.
+                    </span>
+                    <Link href="/dashboard/settings#plan" className="font-bold underline hover:text-amber-950 shrink-0">
+                      Fazer Upgrade PRO ⚡
+                    </Link>
+                  </div>
+                )}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-700 mb-1 flex items-center gap-1">
+                      <Lock className="h-3 w-3 text-zinc-500" /> Proteger com Senha
+                    </label>
+                    <input
+                      type="password"
+                      disabled={!isPro}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={isPro ? "Digite uma senha..." : "Exclusivo PRO"}
+                      className="w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-blue-600 focus:outline-none disabled:bg-zinc-100 disabled:text-zinc-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-700 mb-1 flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-zinc-500" /> Início (Ativo a partir de)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      disabled={!isPro}
+                      value={startsAt}
+                      onChange={(e) => setStartsAt(e.target.value)}
+                      className="w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none disabled:bg-zinc-100 disabled:text-zinc-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-700 mb-1 flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-zinc-500" /> Término (Expira em)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      disabled={!isPro}
+                      value={expiresAt}
+                      onChange={(e) => setExpiresAt(e.target.value)}
+                      className="w-full rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none disabled:bg-zinc-100 disabled:text-zinc-400"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex justify-end pt-1">
             <button
               type="submit"
-              disabled={loading}
-              className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition disabled:opacity-50"
+              disabled={loading || (!isPro && links.length >= 20)}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              Encurtar Link
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )}
+              {!isPro && links.length >= 20 ? "Limite de 20 Links Atingido" : "Encurtar Link"}
             </button>
           </div>
         </form>
@@ -586,6 +775,22 @@ export default function LinksManagerClient({
                             {link.short_code}
                             <ArrowUpRight className="h-3 w-3 text-blue-500" />
                           </a>
+                          {link.password_hash && (
+                            <span
+                              className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 border border-amber-200 shrink-0"
+                              title="Link Protegido por Senha"
+                            >
+                              <Lock className="h-2.5 w-2.5" /> Senha
+                            </span>
+                          )}
+                          {(link.starts_at || link.expires_at) && (
+                            <span
+                              className="inline-flex items-center gap-0.5 rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-800 border border-indigo-200 shrink-0"
+                              title="Link com Agendamento de Data"
+                            >
+                              <Calendar className="h-2.5 w-2.5" /> Agendado
+                            </span>
+                          )}
                         </div>
                         <div className="text-[11px] text-zinc-600 truncate mt-1" title={link.long_url}>
                           {link.title && <span className="font-semibold text-zinc-800 mr-1.5">{link.title} •</span>}

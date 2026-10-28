@@ -17,6 +17,7 @@ import {
   ArrowRight,
   Layers,
   Users,
+  Sparkles,
 } from "lucide-react";
 import BioLeadsTable, { BioLeadItem } from "@/components/BioLeadsTable";
 
@@ -38,6 +39,7 @@ export default function BioListClient({
   handle,
   origin,
   userId,
+  planTier = "free",
   defaultTab = "bios",
 }: {
   initialBios: BioPageItem[];
@@ -45,8 +47,10 @@ export default function BioListClient({
   handle: string;
   origin: string;
   userId: string;
+  planTier?: string;
   defaultTab?: "bios" | "leads";
 }) {
+  const isPro = planTier === "pro" || planTier === "enterprise";
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -84,6 +88,11 @@ export default function BioListClient({
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
+
+    if (!isPro && bios.length >= 1) {
+      alert("Você atingiu o limite de 1 Bio Page do plano Gratuito. Faça upgrade para o LinkSnap PRO para criar até 5 Bio Pages!");
+      return;
+    }
 
     const slug = (newSlug.trim() || Math.random().toString(36).substring(2, 8))
       .toLowerCase()
@@ -228,59 +237,94 @@ export default function BioListClient({
         <div className="space-y-6 animate-in fade-in">
           {/* Formulário de Criação Rápida */}
           {isCreating && (
-            <form
-              onSubmit={handleCreate}
-              className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 shadow-sm space-y-3 animate-in fade-in"
-            >
-              <h2 className="text-xs font-bold uppercase tracking-wider text-blue-900">
-                Nova Página de Bio
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
-                    Título da Página *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="Ex: Minha Bio Pessoal, Lançamento do Curso, etc."
-                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
-                    Slug da URL (Opcional)
-                  </label>
-                  <div className="flex items-center rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 focus-within:border-blue-600">
-                    <span className="text-[11px] text-zinc-400 font-mono">/b/{handle}/</span>
-                    <input
-                      type="text"
-                      value={newSlug}
-                      onChange={(e) => setNewSlug(e.target.value)}
-                      placeholder="versao-1"
-                      className="w-full bg-transparent text-xs text-blue-700 font-mono focus:outline-none pl-1 border-transparent"
-                    />
+            !isPro && bios.length >= 1 ? (
+              <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-5 shadow-sm space-y-3 animate-in fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-amber-500 text-white">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                        Limite de 1 Bio Page Atingido (Plano Free)
+                      </h3>
+                      <p className="text-xs text-amber-900 mt-1 leading-relaxed">
+                        No plano gratuito você tem direito a <strong>1 Bio Page ativa</strong>. Faça upgrade para o <strong>LinkSnap PRO</strong> para criar até <strong>5 Bio Pages</strong>, conectar domínio próprio, instalar Meta Pixel e ocultar a marca do rodapé.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCreating(false)}
+                      className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs text-amber-800 hover:bg-amber-50"
+                    >
+                      Fechar
+                    </button>
+                    <Link
+                      href="/dashboard/settings#plan"
+                      className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition"
+                    >
+                      Fazer Upgrade PRO ⚡
+                    </Link>
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsCreating(false)}
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-1.5 text-xs font-semibold text-white shadow-sm"
-                >
-                  Continuar para o Editor ➔
-                </button>
-              </div>
-            </form>
+            ) : (
+              <form
+                onSubmit={handleCreate}
+                className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 shadow-sm space-y-3 animate-in fade-in"
+              >
+                <h2 className="text-xs font-bold uppercase tracking-wider text-blue-900">
+                  Nova Página de Bio
+                </h2>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
+                      Título da Página *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      placeholder="Ex: Minha Bio Pessoal, Lançamento do Curso, etc."
+                      className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-900 focus:border-blue-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
+                      Slug da URL (Opcional)
+                    </label>
+                    <div className="flex items-center rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 focus-within:border-blue-600">
+                      <span className="text-[11px] text-zinc-400 font-mono">/b/{handle}/</span>
+                      <input
+                        type="text"
+                        value={newSlug}
+                        onChange={(e) => setNewSlug(e.target.value)}
+                        placeholder="versao-1"
+                        className="w-full bg-transparent text-xs text-blue-700 font-mono focus:outline-none pl-1 border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreating(false)}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-1.5 text-xs font-semibold text-white shadow-sm"
+                  >
+                    Continuar para o Editor ➔
+                  </button>
+                </div>
+              </form>
+            )
           )}
 
           {/* Grid de Bio Pages */}

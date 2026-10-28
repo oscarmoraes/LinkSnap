@@ -30,6 +30,7 @@ import {
   QrCode,
   Send,
   MousePointerClick,
+  Activity,
 } from "lucide-react";
 
 export interface BioBlockData {
@@ -94,6 +95,9 @@ export interface BioPageData {
   avatar_url: string | null;
   layout: string;
   theme: BioTheme;
+  meta_pixel_id?: string | null;
+  gtm_id?: string | null;
+  hide_branding?: boolean;
   views?: number;
 }
 
@@ -161,15 +165,21 @@ export default function BioEditorClient({
   initialLeads = [],
   handle,
   origin,
+  planTier = "free",
 }: {
   initialPage: BioPageData;
   initialBlocks: BioBlock[];
   initialLeads?: BioLead[];
   handle: string;
   origin: string;
+  planTier?: string;
 }) {
+  const isPro = planTier === "pro" || planTier === "enterprise";
   const router = useRouter();
   const supabase = createClient();
+
+  const [metaPixelId, setMetaPixelId] = useState(initialPage.meta_pixel_id || "");
+  const [gtmId, setGtmId] = useState(initialPage.gtm_id || "");
 
   const [page, setPage] = useState<BioPageData>({
     ...initialPage,
@@ -180,7 +190,7 @@ export default function BioEditorClient({
       cardText: initialPage.theme?.cardText || "#18181B",
       accent: initialPage.theme?.accent || "#2563EB",
       verified: initialPage.theme?.verified ?? false,
-      hideBranding: initialPage.theme?.hideBranding ?? false,
+      hideBranding: isPro ? (initialPage.hide_branding ?? initialPage.theme?.hideBranding ?? false) : false,
     },
   });
   const [blocks, setBlocks] = useState<BioBlock[]>(initialBlocks);
@@ -312,6 +322,9 @@ export default function BioEditorClient({
           layout: page.layout,
           theme: page.theme,
           avatar_url: page.avatar_url,
+          meta_pixel_id: isPro ? (metaPixelId.trim() || null) : null,
+          gtm_id: isPro ? (gtmId.trim() || null) : null,
+          hide_branding: isPro ? Boolean(page.theme.hideBranding) : false,
         })
         .eq("id", page.id);
 
@@ -719,30 +732,111 @@ export default function BioEditorClient({
                   />
                 </label>
 
-                <label className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 cursor-pointer hover:bg-zinc-50">
+                <label className={`flex items-center justify-between rounded-xl border p-3 transition ${
+                  !isPro
+                    ? "border-amber-200 bg-amber-50/50 cursor-not-allowed"
+                    : "border-zinc-200 bg-zinc-50/70 cursor-pointer hover:bg-zinc-50"
+                }`}>
                   <div className="flex items-center gap-2.5">
                     <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
                     <div>
-                      <span className="block text-xs font-semibold text-zinc-900">
-                        Ocultar marca LinkSnap
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="block text-xs font-semibold text-zinc-900">
+                          Ocultar marca LinkSnap
+                        </span>
+                        {!isPro && (
+                          <span className="rounded bg-amber-200 px-1.5 py-0.2 text-[9px] font-bold text-amber-900 border border-amber-300">
+                            PRO 🔒
+                          </span>
+                        )}
+                      </div>
                       <span className="block text-[10px] text-zinc-500">
-                        Remove selo do rodapé público
+                        {isPro
+                          ? "Remove o selo 'Criado com LinkSnap' do rodapé da sua Bio"
+                          : "Exclusivo PRO: ative o White-Label completo na sua página"}
                       </span>
                     </div>
                   </div>
                   <input
                     type="checkbox"
-                    checked={Boolean(page.theme.hideBranding)}
-                    onChange={(e) =>
+                    disabled={!isPro}
+                    checked={Boolean(isPro && page.theme.hideBranding)}
+                    onChange={(e) => {
+                      if (!isPro) {
+                        alert("Remover a marca LinkSnap é um recurso exclusivo do Plano PRO. Faça upgrade para desbloquear!");
+                        return;
+                      }
                       setPage({
                         ...page,
                         theme: { ...page.theme, hideBranding: e.target.checked },
-                      })
-                    }
-                    className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+                      });
+                    }}
+                    className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                   />
                 </label>
+              </div>
+
+              {/* Seção de Pixels e Rastreamento */}
+              <div className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-blue-600" />
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-900">
+                        Pixels & Rastreamento de Tráfego
+                      </h4>
+                      <p className="text-[10px] text-zinc-500">
+                        Instale tags para remarketing e mensuração de campanhas
+                      </p>
+                    </div>
+                  </div>
+                  {!isPro && (
+                    <span className="rounded bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-900 border border-amber-200">
+                      PRO ⚡
+                    </span>
+                  )}
+                </div>
+
+                {!isPro ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <span>
+                      Rastreie visitantes no <strong>Facebook Ads</strong> e <strong>Google Tag Manager</strong> fazendo upgrade para o PRO.
+                    </span>
+                    <Link
+                      href="/dashboard/settings#plan"
+                      className="inline-flex shrink-0 font-bold underline hover:text-amber-950"
+                    >
+                      Ativar PRO ➔
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 pt-1">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
+                        Meta Pixel ID (Facebook Ads)
+                      </label>
+                      <input
+                        type="text"
+                        value={metaPixelId}
+                        onChange={(e) => setMetaPixelId(e.target.value)}
+                        placeholder="Ex: 123456789012345"
+                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-900 font-mono focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-zinc-700 mb-1">
+                        Google Tag Manager (GTM ID)
+                      </label>
+                      <input
+                        type="text"
+                        value={gtmId}
+                        onChange={(e) => setGtmId(e.target.value)}
+                        placeholder="Ex: GTM-XXXXXXX"
+                        className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-900 font-mono focus:border-blue-600 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Presets Rápidos de Tema de Cores */}
