@@ -47,6 +47,12 @@ export async function POST(request: Request) {
     const amountFormatted = plan.price.toFixed(2);
     const idempotencyKey = crypto.randomUUID();
 
+    // Sanitizar dados do pagador para evitar strings vazias
+    const fullName = (user.user_metadata?.full_name || "").trim();
+    const nameParts = fullName ? fullName.split(/\s+/) : [];
+    const firstName = nameParts[0] || "Cliente";
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "LinkSnap";
+
     // Construção do payload da nova Orders API (/v1/orders)
     const orderPayload: any = {
       type: "online",
@@ -55,8 +61,8 @@ export async function POST(request: Request) {
       external_reference: `linksnap_${user.id}_${planKey}_${Date.now()}`,
       payer: {
         email: user.email || "usuario@linksnap.com.br",
-        first_name: user.user_metadata?.full_name?.split(" ")[0] || "Cliente",
-        last_name: user.user_metadata?.full_name?.split(" ").slice(1).join(" ") || "LinkSnap",
+        first_name: firstName,
+        last_name: lastName,
       },
       items: [
         {
