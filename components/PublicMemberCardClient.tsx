@@ -69,8 +69,10 @@ export default function PublicMemberCardClient({
     ? `https://wa.me/${cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone}`
     : "";
 
-  // Campos personalizados para exibir na validação
-  const validationFields = (org.card_fields || []).filter((f) => f.showOnValidation);
+  // Campos personalizados para exibir na validação (garante suporte a legado caso venha objeto antigo)
+  const validationFields = (
+    Array.isArray(org.card_fields) ? org.card_fields : []
+  ).filter((f) => f && typeof f === "object" && f.showOnValidation);
 
   // Geração e Download de vCard (.vcf)
   const handleDownloadVCard = () => {

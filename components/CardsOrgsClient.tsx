@@ -119,7 +119,7 @@ export default function CardsOrgsClient({
     setLogoUrl(org.logo_url || "");
     setTemplate(org.card_template || "vertical");
     setCustomDomainId(org.custom_domain_id || "");
-    setCardFields(org.card_fields || []);
+    setCardFields(Array.isArray(org.card_fields) ? org.card_fields : []);
     setIsModalOpen(true);
   };
 
@@ -309,7 +309,7 @@ export default function CardsOrgsClient({
             const domainName = Array.isArray(org.custom_domains)
               ? org.custom_domains[0]?.domain
               : org.custom_domains?.domain;
-            const fieldsCount = org.card_fields?.length || 0;
+            const fieldsCount = Array.isArray(org.card_fields) ? org.card_fields.length : 0;
 
             return (
               <div

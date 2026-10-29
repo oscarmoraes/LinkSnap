@@ -361,7 +361,9 @@ export default function OrgMembersClient({
   };
 
   const cardTemplate = org.card_template || "vertical";
-  const fieldsToShowOnCard = (org.card_fields || []).filter((f) => f.showOnCard);
+  const fieldsToShowOnCard = (
+    Array.isArray(org.card_fields) ? org.card_fields : []
+  ).filter((f) => f && typeof f === "object" && f.showOnCard);
 
   return (
     <div className="space-y-6">
@@ -1010,7 +1012,7 @@ export default function OrgMembersClient({
               </div>
 
               {/* Campos Personalizados (Definidos na Organização) */}
-              {org.card_fields && org.card_fields.length > 0 && (
+              {Array.isArray(org.card_fields) && org.card_fields.length > 0 && (
                 <div className="pt-2 border-t border-zinc-100 space-y-2">
                   <h4 className="text-xs font-bold uppercase text-zinc-700 flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-blue-600" />
