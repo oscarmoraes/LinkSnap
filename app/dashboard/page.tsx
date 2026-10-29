@@ -37,7 +37,7 @@ export default async function DashboardOverviewPage() {
       .single(),
     supabase
       .from("links")
-      .select("id, short_code, long_url, title, clicks, is_custom_slug, created_at")
+      .select("id, short_code, long_url, title, clicks, is_custom_slug, created_at, custom_domain_id, custom_domains(domain)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -517,7 +517,7 @@ export default async function DashboardOverviewPage() {
       </div>
 
       {/* 5. LISTA DE LINKS RECENTES (TABELA DE ALTO CONTRASTE) */}
-      <RecentLinksTable links={links} userHandle={userHandle} />
+      <RecentLinksTable links={(links as any) || []} userHandle={userHandle} />
 
       {/* 6. UTILITÁRIOS RÁPIDOS & QR CODES (LINKS COMPACTOS) */}
       <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs">

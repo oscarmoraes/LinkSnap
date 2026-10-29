@@ -12,10 +12,10 @@ export default async function LinksPage() {
 
   if (!user) return null;
 
-  const [{ data: links }, { data: profile }] = await Promise.all([
+  const [{ data: links }, { data: profile }, { data: customDomains }] = await Promise.all([
     supabase
       .from("links")
-      .select("id, short_code, long_url, title, clicks, is_custom_slug, tags, pinned, archived, source_type, link_scope, branded_handle, password_hash, starts_at, expires_at, created_at")
+      .select("id, short_code, long_url, title, clicks, is_custom_slug, tags, pinned, archived, source_type, link_scope, branded_handle, password_hash, starts_at, expires_at, created_at, custom_domain_id, custom_domains(id, domain)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -23,6 +23,12 @@ export default async function LinksPage() {
       .select("handle, plan_tier")
       .eq("id", user.id)
       .single(),
+    supabase
+      .from("custom_domains")
+      .select("id, domain, status")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false }),
   ]);
 
   const headersList = headers();
@@ -35,11 +41,12 @@ export default async function LinksPage() {
 
   return (
     <LinksManagerClient
-      initialLinks={links || []}
+      initialLinks={(links as any) || []}
       origin={origin}
       userId={user.id}
       userHandle={userHandle}
       planTier={planTier}
+      customDomains={customDomains || []}
     />
   );
 }

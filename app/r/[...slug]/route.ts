@@ -242,13 +242,49 @@ async function findLink(slugParts: string[]) {
 
     const { data: link, error } = await supabase
       .from("links")
-      .select("id, user_id, short_code, long_url, title, is_active, link_scope, branded_handle, password_hash, starts_at, expires_at")
+      .select("id, user_id, short_code, long_url, title, is_active, link_scope, branded_handle, password_hash, starts_at, expires_at, custom_domain_id")
       .eq("user_id", ownerId)
       .eq("short_code", slug)
       .eq("link_scope", "branded")
       .maybeSingle();
 
     return { link, error };
+  } else if (slugParts.length === 3 && slugParts[0] === "_d") {
+    const [_, domainId, slug] = slugParts;
+
+    // 1. Tenta buscar link explicitamente configurado com este custom_domain_id
+    const { data: domainLink } = await supabase
+      .from("links")
+      .select("id, user_id, short_code, long_url, title, is_active, link_scope, branded_handle, password_hash, starts_at, expires_at, custom_domain_id")
+      .eq("custom_domain_id", domainId)
+      .eq("short_code", slug)
+      .maybeSingle();
+
+    if (domainLink) {
+      return { link: domainLink, error: null };
+    }
+
+    // 2. Fallback: busca qualquer link ativo pertencente ao dono deste domínio personalizado
+    const { data: domainRec } = await supabase
+      .from("custom_domains")
+      .select("user_id")
+      .eq("id", domainId)
+      .single();
+
+    if (domainRec?.user_id) {
+      const { data: userLink } = await supabase
+        .from("links")
+        .select("id, user_id, short_code, long_url, title, is_active, link_scope, branded_handle, password_hash, starts_at, expires_at, custom_domain_id")
+        .eq("user_id", domainRec.user_id)
+        .eq("short_code", slug)
+        .maybeSingle();
+
+      if (userLink) {
+        return { link: userLink, error: null };
+      }
+    }
+
+    return { link: null, error: "Link não encontrado neste domínio personalizado" };
   }
 
   return { link: null, error: "Formato de rota inválido" };
@@ -300,7 +336,7 @@ export async function GET(
 ) {
   const slugParts = params.slug;
 
-  if (!slugParts || slugParts.length === 0 || slugParts.length > 2) {
+  if (!slugParts || slugParts.length === 0 || slugParts.length > 3) {
     return new NextResponse("Link não encontrado ou formato inválido.", { status: 404 });
   }
 
@@ -308,6 +344,11 @@ export async function GET(
     const { link, error } = await findLink(slugParts);
 
     if (error || !link || !link.is_active) {
+      if (slugParts.length === 3 && slugParts[0] === "_d") {
+        // Redireciona para a raiz do domínio próprio (a bio do usuário) caso o link não exista
+        return NextResponse.redirect(new URL("/", request.url), { status: 302 });
+      }
+
       return new NextResponse(
         renderHtmlPage({
           title: "Link não encontrado",
@@ -418,7 +459,7 @@ export async function POST(
 ) {
   const slugParts = params.slug;
 
-  if (!slugParts || slugParts.length === 0 || slugParts.length > 2) {
+  if (!slugParts || slugParts.length === 0 || slugParts.length > 3) {
     return new NextResponse("Link não encontrado.", { status: 404 });
   }
 

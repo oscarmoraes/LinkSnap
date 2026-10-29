@@ -105,13 +105,31 @@ export async function updateSession(request: NextRequest) {
           }
         }
 
-        if (handle && slug) {
-          const pathname = request.nextUrl.pathname;
-          // Se for a raiz do domínio customizado, reescreve diretamente para a Bio pública do cliente!
-          if (pathname === "/" || pathname === "") {
+        const pathname = request.nextUrl.pathname;
+
+        // Se for a raiz do domínio customizado, reescreve diretamente para a Bio pública do cliente!
+        if (pathname === "/" || pathname === "") {
+          if (handle && slug) {
             const rewriteUrl = request.nextUrl.clone();
             rewriteUrl.pathname = `/b/${handle}/${slug}`;
             return NextResponse.rewrite(rewriteUrl);
+          }
+        } else {
+          // Se for um link encurtado próprio (ex: /whatsapp, /promo, /ebook)
+          const isSystemSubpath =
+            pathname.startsWith("/_next") ||
+            pathname.startsWith("/api") ||
+            pathname.startsWith("/favicon.ico") ||
+            pathname.startsWith("/robots.txt") ||
+            pathname.startsWith("/sitemap.xml");
+
+          if (!isSystemSubpath) {
+            const pathSlug = pathname.replace(/^\/+/, "").split("/")[0];
+            if (pathSlug) {
+              const rewriteUrl = request.nextUrl.clone();
+              rewriteUrl.pathname = `/r/_d/${customDomain.id}/${pathSlug}`;
+              return NextResponse.rewrite(rewriteUrl);
+            }
           }
         }
       }

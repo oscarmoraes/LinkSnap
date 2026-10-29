@@ -12,6 +12,8 @@ export interface DashboardLinkItem {
   clicks: number;
   is_custom_slug: boolean;
   created_at: string;
+  custom_domain_id?: string | null;
+  custom_domains?: { domain?: string } | { domain?: string }[] | any;
 }
 
 interface RecentLinksTableProps {
@@ -22,9 +24,17 @@ interface RecentLinksTableProps {
 export default function RecentLinksTable({ links, userHandle }: RecentLinksTableProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const getDomainName = (link: DashboardLinkItem) => {
+    if (Array.isArray(link.custom_domains)) {
+      return link.custom_domains[0]?.domain;
+    }
+    return link.custom_domains?.domain;
+  };
+
   const handleCopy = async (link: DashboardLinkItem) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const fullUrl = `${origin}/r/${link.short_code}`;
+    const cd = getDomainName(link);
+    const fullUrl = cd ? `https://${cd}/${link.short_code}` : `${origin}/r/${link.short_code}`;
     try {
       await navigator.clipboard.writeText(fullUrl);
       setCopiedId(link.id);
@@ -104,15 +114,26 @@ export default function RecentLinksTable({ links, userHandle }: RecentLinksTable
                 {/* Info do Link */}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50/80 border border-blue-200/70 rounded px-1.5 py-0.5 hover:underline">
-                      /r/{link.short_code}
-                    </span>
+                    {(() => {
+                      const domainName = getDomainName(link);
+                      return (
+                        <>
+                          <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50/80 border border-blue-200/70 rounded px-1.5 py-0.5 hover:underline">
+                            {domainName ? `${domainName}/${link.short_code}` : `/r/${link.short_code}`}
+                          </span>
 
-                    {link.is_custom_slug && (
-                      <span className="rounded bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 border border-purple-200">
-                        @{userHandle}
-                      </span>
-                    )}
+                          {domainName ? (
+                            <span className="rounded bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 border border-purple-200">
+                              🌐 Domínio Próprio
+                            </span>
+                          ) : link.is_custom_slug ? (
+                            <span className="rounded bg-purple-50 px-2 py-0.5 text-[9px] font-bold text-purple-700 border border-purple-200">
+                              @{userHandle}
+                            </span>
+                          ) : null}
+                        </>
+                      );
+                    })()}
 
                     <span className="truncate text-xs font-bold text-zinc-900">
                       {link.title || "Sem título"}

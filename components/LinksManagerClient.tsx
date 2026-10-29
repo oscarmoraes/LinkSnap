@@ -32,6 +32,7 @@ import {
   Shield,
   ChevronDown,
   ChevronUp,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -54,8 +55,10 @@ export interface LinkItem {
   pinned?: boolean;
   archived?: boolean;
   source_type?: string | null;
-  link_scope?: "global" | "branded" | null;
+  link_scope?: "global" | "branded" | "custom_domain" | null;
   branded_handle?: string | null;
+  custom_domain_id?: string | null;
+  custom_domains?: { id?: string; domain?: string } | { id?: string; domain?: string }[] | any;
   password_hash?: string | null;
   starts_at?: string | null;
   expires_at?: string | null;
@@ -68,12 +71,14 @@ export default function LinksManagerClient({
   userId,
   userHandle,
   planTier = "free",
+  customDomains = [],
 }: {
   initialLinks: LinkItem[];
   origin: string;
   userId: string;
   userHandle: string;
   planTier?: string;
+  customDomains?: { id: string; domain: string }[];
 }) {
   const isPro = planTier === "pro" || planTier === "enterprise";
   const supabase = createClient();
@@ -83,7 +88,8 @@ export default function LinksManagerClient({
   const [longUrl, setLongUrl] = useState("");
   const [customSlug, setCustomSlug] = useState("");
   const [tagsInput, setTagsInput] = useState("");
-  const [scope, setScope] = useState<"global" | "branded">("global");
+  const [scope, setScope] = useState<"global" | "branded" | "custom_domain">("global");
+  const [selectedDomainId, setSelectedDomainId] = useState<string>("default");
   const [loading, setLoading] = useState(false);
 
   // Recursos Avançados (PRO)
@@ -109,6 +115,18 @@ export default function LinksManagerClient({
   const [savingEdit, setSavingEdit] = useState(false);
 
   const getFullUrl = (link: LinkItem) => {
+    let cd: string | undefined;
+    if (Array.isArray(link.custom_domains)) {
+      cd = link.custom_domains[0]?.domain;
+    } else if (link.custom_domains?.domain) {
+      cd = link.custom_domains.domain;
+    } else if (link.custom_domain_id) {
+      cd = customDomains.find((d) => d.id === link.custom_domain_id)?.domain;
+    }
+
+    if (cd) {
+      return `https://${cd}/${link.short_code}`;
+    }
     if (link.link_scope === "branded") {
       return `${origin}/r/${link.branded_handle || userHandle}/${link.short_code}`;
     }
@@ -184,9 +202,22 @@ export default function LinksManagerClient({
             .filter(Boolean)
         : [];
 
-      const isBranded = scope === "branded";
-      if (isBranded && !isPro) {
-        throw new Error("Links com marca própria (/r/@handle/...) são exclusivos do plano PRO.");
+      const isCustomDomain = selectedDomainId !== "default";
+      let chosenDomainId: string | null = null;
+      let finalScope: "global" | "branded" | "custom_domain" = scope === "branded" ? "branded" : "global";
+
+      if (isCustomDomain) {
+        if (!isPro) {
+          throw new Error("Links em domínio próprio são exclusivos do plano PRO ou Enterprise.");
+        }
+        chosenDomainId = selectedDomainId;
+        finalScope = "custom_domain";
+      } else {
+        const isBranded = scope === "branded";
+        if (isBranded && !isPro) {
+          throw new Error("Links com marca própria (/r/@handle/...) são exclusivos do plano PRO.");
+        }
+        finalScope = isBranded ? "branded" : "global";
       }
 
       if (!isPro && links.length >= 20) {
@@ -221,13 +252,14 @@ export default function LinksManagerClient({
           is_custom_slug: isCustom,
           tags,
           source_type: "direct",
-          link_scope: isBranded ? "branded" : "global",
-          branded_handle: isBranded ? userHandle : null,
+          link_scope: finalScope,
+          branded_handle: finalScope === "branded" ? userHandle : null,
+          custom_domain_id: chosenDomainId,
           password_hash: passwordHash,
           starts_at: parsedStartsAt,
           expires_at: parsedExpiresAt,
         })
-        .select()
+        .select("id, short_code, long_url, title, clicks, is_custom_slug, tags, pinned, archived, source_type, link_scope, branded_handle, password_hash, starts_at, expires_at, created_at, custom_domain_id, custom_domains(id, domain)")
         .single();
 
       if (error) {
@@ -238,7 +270,8 @@ export default function LinksManagerClient({
       }
 
       if (data) {
-        setLinks([data, ...links]);
+        const newLink = data as any as LinkItem;
+        setLinks([newLink, ...links]);
         setLongUrl("");
         setCustomSlug("");
         setTagsInput("");
@@ -246,11 +279,11 @@ export default function LinksManagerClient({
         setStartsAt("");
         setExpiresAt("");
 
-        const fullUrl = getFullUrl(data);
+        const fullUrl = getFullUrl(newLink);
         setStatusMsg({ type: "success", text: `Link ${fullUrl} criado com sucesso!` });
 
         const qrDataUrl = await QRCode.toDataURL(fullUrl, { width: 360, margin: 2 });
-        setSelectedQr({ url: fullUrl, code: data.short_code, title: linkTitle, qrDataUrl });
+        setSelectedQr({ url: fullUrl, code: newLink.short_code, title: linkTitle, qrDataUrl });
       }
     } catch (err: any) {
       setStatusMsg({ type: "error", text: err.message || "Erro ao criar o link curto." });
@@ -481,12 +514,15 @@ export default function LinksManagerClient({
             Encurtar Novo Link
           </h2>
 
-          <div className="flex items-center gap-1 bg-zinc-100 rounded-lg p-0.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-1 bg-zinc-100 rounded-lg p-0.5 text-[11px]">
             <button
               type="button"
-              onClick={() => setScope("global")}
+              onClick={() => {
+                setSelectedDomainId("default");
+                setScope("global");
+              }}
               className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                scope === "global"
+                selectedDomainId === "default" && scope === "global"
                   ? "bg-white text-zinc-900 shadow-xs"
                   : "text-zinc-500 hover:text-zinc-800"
               }`}
@@ -503,21 +539,40 @@ export default function LinksManagerClient({
                   });
                   return;
                 }
+                setSelectedDomainId("default");
                 setScope("branded");
               }}
               className={`px-2 py-0.5 rounded-md font-medium transition-colors flex items-center gap-1 ${
-                scope === "branded"
+                selectedDomainId === "default" && scope === "branded"
                   ? "bg-white text-blue-700 shadow-xs"
                   : "text-zinc-500 hover:text-zinc-800"
               }`}
             >
-              <span>Com sua marca (/r/@{userHandle}/...)</span>
+              <span>Com seu @{userHandle}</span>
               {!isPro && (
                 <span className="rounded bg-amber-200/80 px-1 py-0.2 text-[9px] font-bold text-amber-900 border border-amber-300">
                   PRO
                 </span>
               )}
             </button>
+            {customDomains.map((cd) => (
+              <button
+                key={cd.id}
+                type="button"
+                onClick={() => {
+                  setSelectedDomainId(cd.id);
+                  setScope("custom_domain");
+                }}
+                className={`px-2 py-0.5 rounded-md font-medium transition-colors flex items-center gap-1 ${
+                  selectedDomainId === cd.id
+                    ? "bg-purple-600 text-white shadow-xs"
+                    : "text-purple-700 hover:text-purple-900 hover:bg-purple-100/50"
+                }`}
+              >
+                <Globe className="h-3 w-3" />
+                <span className="font-semibold">{cd.domain}</span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -543,7 +598,11 @@ export default function LinksManagerClient({
               </label>
               <div className="flex items-center rounded-lg border border-zinc-300 bg-white shadow-xs px-2 py-1.5 focus-within:border-blue-600">
                 <span className="text-[11px] text-zinc-400 font-mono">
-                  {scope === "branded" ? `/r/@${userHandle}/` : `/r/`}
+                  {selectedDomainId !== "default"
+                    ? `${customDomains.find((d) => d.id === selectedDomainId)?.domain}/`
+                    : scope === "branded"
+                    ? `/r/@${userHandle}/`
+                    : `/r/`}
                 </span>
                 <input
                   type="text"
@@ -771,10 +830,28 @@ export default function LinksManagerClient({
                             rel="noopener noreferrer"
                             className="font-mono font-bold text-blue-700 bg-blue-50/80 border border-blue-200/70 rounded px-1.5 py-0.5 hover:underline flex items-center gap-1 truncate"
                           >
-                            {link.link_scope === "branded" ? `@${link.branded_handle || userHandle}/` : ""}
+                            {link.custom_domains?.domain ||
+                            customDomains.find((d) => d.id === link.custom_domain_id)?.domain ? (
+                              <span className="text-purple-700 font-semibold">
+                                {link.custom_domains?.domain ||
+                                  customDomains.find((d) => d.id === link.custom_domain_id)?.domain}/
+                              </span>
+                            ) : link.link_scope === "branded" ? (
+                              `@${link.branded_handle || userHandle}/`
+                            ) : (
+                              ""
+                            )}
                             {link.short_code}
                             <ArrowUpRight className="h-3 w-3 text-blue-500" />
                           </a>
+                          {link.custom_domain_id && (
+                            <span
+                              className="inline-flex items-center gap-0.5 rounded bg-purple-50 px-1.5 py-0.5 text-[9px] font-semibold text-purple-700 border border-purple-200 shrink-0"
+                              title="Link com Domínio Próprio"
+                            >
+                              <Globe className="h-2.5 w-2.5" /> Domínio
+                            </span>
+                          )}
                           {link.password_hash && (
                             <span
                               className="inline-flex items-center gap-0.5 rounded bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800 border border-amber-200 shrink-0"
@@ -803,7 +880,11 @@ export default function LinksManagerClient({
                         <div className="flex flex-col items-start gap-1">
                           {renderSourceBadge(link.source_type)}
                           <span className="text-[10px] font-mono text-zinc-400">
-                            {link.link_scope === "branded" ? "Marca" : "Global"}
+                            {link.custom_domain_id
+                              ? "Domínio Próprio"
+                              : link.link_scope === "branded"
+                              ? "Marca"
+                              : "Global"}
                           </span>
                         </div>
                       </td>
