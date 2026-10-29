@@ -273,10 +273,15 @@ export default function PublicBioClient({
 
         // 2. BLOCO WHATSAPP
         if (block.type === "whatsapp") {
-          const cleanPhone = (bData.phone || "").replace(/\D/g, "");
-          const wppUrl = `https://wa.me/${cleanPhone}${
-            bData.message ? `?text=${encodeURIComponent(bData.message)}` : ""
-          }`;
+          let cleanPhone = (bData.phone || "").replace(/\D/g, "");
+          if (cleanPhone.length > 0 && cleanPhone.length <= 11) {
+            cleanPhone = `55${cleanPhone}`;
+          }
+          const wppUrl = cleanPhone
+            ? `https://wa.me/${cleanPhone}${
+                bData.message ? `?text=${encodeURIComponent(bData.message)}` : ""
+              }`
+            : "#";
 
           return (
             <a
@@ -389,6 +394,10 @@ export default function PublicBioClient({
                         alt="QR Code Pix"
                         className="h-44 w-44 mx-auto"
                       />
+                    </div>
+                  ) : !bData.pixKey ? (
+                    <div className="py-4 text-xs opacity-70">
+                      Chave Pix não configurada pelo criador.
                     </div>
                   ) : (
                     <div className="py-6 text-xs opacity-70">Gerando QR Code Pix...</div>
@@ -515,9 +524,9 @@ export default function PublicBioClient({
                         onClick={() =>
                           handleCopyText(`coupon-${block.id}`, bData.coupon || "")
                         }
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-current/35 px-2.5 py-1 font-mono text-[11px] font-semibold transition hover:bg-black/5"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-current/35 px-3 py-1.5 font-mono text-xs font-semibold transition hover:bg-black/5 active:scale-[0.98]"
                       >
-                        <Tag className="h-3 w-3" />
+                        <Tag className="h-3.5 w-3.5" />
                         {copiedId === `coupon-${block.id}` ? (
                           <span>Cupom {bData.coupon} Copiado!</span>
                         ) : (
@@ -529,7 +538,7 @@ export default function PublicBioClient({
                 </div>
 
                 <a
-                  href={bData.url || "#"}
+                  href={normalizeExternalUrl(bData.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => trackBlockClick(block.id)}

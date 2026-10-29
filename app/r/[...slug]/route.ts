@@ -20,6 +20,15 @@ function hashSha256(str: string): string {
   return crypto.createHash("sha256").update(str.trim()).digest("hex");
 }
 
+function sanitizeDestinationUrl(rawUrl: string): string {
+  if (!rawUrl) return "/";
+  const trimmed = rawUrl.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
 function renderHtmlPage({
   title,
   subtitle,
@@ -131,7 +140,7 @@ function renderHtmlPage({
       padding: 12px 14px;
       border: 1px solid #CBD5E1;
       border-radius: 10px;
-      font-size: 14px;
+      font-size: 16px;
       background: #FFFFFF;
       color: #0F172A;
       outline: none;
@@ -296,7 +305,8 @@ async function recordClick(linkId: string, request: NextRequest) {
 
   const referrer = request.headers.get("referer") || null;
   const userAgent = request.headers.get("user-agent") || null;
-  const country = request.headers.get("x-vercel-ip-country") || null;
+  const rawCountry = request.headers.get("x-vercel-ip-country");
+  const country = rawCountry ? rawCountry.trim().substring(0, 2).toUpperCase() : null;
 
   let device = "desktop";
   if (userAgent) {
@@ -440,8 +450,8 @@ export async function GET(
     // 4. Sem restrições: registra clique e redireciona imediatamente
     await recordClick(link.id, request);
 
-    const destination = new URL(link.long_url);
-    return NextResponse.redirect(destination.toString(), {
+    const destination = sanitizeDestinationUrl(link.long_url);
+    return NextResponse.redirect(destination, {
       status: 302,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
@@ -523,8 +533,8 @@ export async function POST(
     // Senha correta: registra clique e redireciona
     await recordClick(link.id, request);
 
-    const destination = new URL(link.long_url);
-    return NextResponse.redirect(destination.toString(), {
+    const destination = sanitizeDestinationUrl(link.long_url);
+    return NextResponse.redirect(destination, {
       status: 303, // 303 See Other garante GET no destino
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",

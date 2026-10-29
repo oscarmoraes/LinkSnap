@@ -57,11 +57,16 @@ export default function PublicMemberCardClient({
 }) {
   const [downloadedVCard, setDownloadedVCard] = useState(false);
 
-  // Verificação de Status e Validade
-  const today = new Date().toISOString().split("T")[0];
-  const isExpired = member.valid_until ? member.valid_until < today : false;
-  const isSuspended = member.status === "suspended";
-  const isValid = !isSuspended && !isExpired;
+  // Verificação de Status e Validade baseada no fuso local (evita expirar 3h antes em fuso BR)
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const localToday = `${year}-${month}-${day}`;
+
+  const isExpired = member.valid_until ? member.valid_until < localToday : false;
+  const isSuspended = member.status === "suspended" || member.status === "inactive";
+  const isValid = member.status === "active" && !isExpired;
 
   // Sanitização de telefone para WhatsApp
   const cleanPhone = (member.phone || "").replace(/\D/g, "");
@@ -95,7 +100,7 @@ export default function PublicMemberCardClient({
     vcard += `NOTE:Credencial Oficial LinkSnap #${member.code} | ${org.name}\r\n`;
     vcard += "END:VCARD\r\n";
 
-    const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
+    const blob = new Blob(["\uFEFF" + vcard], { type: "text/vcard;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
