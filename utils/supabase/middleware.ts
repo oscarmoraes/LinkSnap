@@ -116,9 +116,12 @@ export async function updateSession(request: NextRequest) {
           }
         } else {
           // Se for um link encurtado próprio (ex: /whatsapp, /promo, /ebook)
+          // Se for uma rota do sistema ou rotas públicas especiais (carteirinhas /c/ ou bio /b/)
           const isSystemSubpath =
             pathname.startsWith("/_next") ||
             pathname.startsWith("/api") ||
+            pathname.startsWith("/c/") ||
+            pathname.startsWith("/b/") ||
             pathname.startsWith("/favicon.ico") ||
             pathname.startsWith("/robots.txt") ||
             pathname.startsWith("/sitemap.xml");

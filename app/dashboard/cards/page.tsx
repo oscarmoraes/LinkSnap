@@ -11,11 +11,40 @@ export default async function CardsPage() {
 
   if (!user) return null;
 
+  // Busca domínios customizados ativos do usuário
+  const { data: userDomains } = await supabase
+    .from("custom_domains")
+    .select("id, domain")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .order("domain", { ascending: true });
+
+  // Busca organizações do usuário com campos completos
   const { data: orgs } = await supabase
     .from("organizations")
-    .select("id, slug, name, logo_url, primary_color, card_template, created_at")
+    .select(`
+      id,
+      slug,
+      name,
+      logo_url,
+      primary_color,
+      card_template,
+      card_fields,
+      custom_domain_id,
+      custom_domains (
+        id,
+        domain
+      ),
+      created_at
+    `)
     .eq("owner_id", user.id)
     .order("created_at", { ascending: false });
 
-  return <CardsOrgsClient initialOrgs={orgs || []} userId={user.id} />;
+  return (
+    <CardsOrgsClient
+      initialOrgs={orgs || []}
+      userId={user.id}
+      userDomains={userDomains || []}
+    />
+  );
 }
