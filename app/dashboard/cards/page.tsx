@@ -11,6 +11,15 @@ export default async function CardsPage() {
 
   if (!user) return null;
 
+  // Busca plano do usuário para feature gating de crachás/equipes
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("plan_tier")
+    .eq("id", user.id)
+    .single();
+
+  const planTier = profile?.plan_tier || "free";
+
   // Busca domínios customizados ativos do usuário
   const { data: userDomains } = await supabase
     .from("custom_domains")
@@ -45,6 +54,7 @@ export default async function CardsPage() {
       initialOrgs={orgs || []}
       userId={user.id}
       userDomains={userDomains || []}
+      planTier={planTier}
     />
   );
 }

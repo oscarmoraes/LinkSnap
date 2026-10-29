@@ -199,6 +199,10 @@ export default function BioEditorClient({
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [proUpgradeModal, setProUpgradeModal] = useState<{ open: boolean; featureName: string }>({
+    open: false,
+    featureName: "",
+  });
 
   const publicUrl = `${origin}/b/${handle}/${page.slug}`;
 
@@ -209,6 +213,15 @@ export default function BioEditorClient({
   };
 
   const handleAddBlock = (type: string) => {
+    // Feature Gating: Produto e Lead Form exclusivos para PRO / Business
+    if (!isPro && (type === "product" || type === "lead_form")) {
+      setProUpgradeModal({
+        open: true,
+        featureName: type === "product" ? "Vitrine de Produtos" : "Captura de Leads",
+      });
+      return;
+    }
+
     let defaultData: BioBlockData = {};
     if (type === "link") {
       defaultData = {
@@ -339,22 +352,31 @@ export default function BioEditorClient({
       if (deleteErr) throw deleteErr;
 
       if (blocks.length > 0) {
-        const blocksToInsert = blocks.map((b, idx) => ({
-          bio_page_id: page.id,
-          position: idx,
-          type: b.type,
-          data: b.data,
-          clicks: b.clicks || 0,
-          is_active: true,
-        }));
-        const { data: insertedBlocks, error: blockErr } = await supabase
-          .from("bio_blocks")
-          .insert(blocksToInsert)
-          .select("id, type, data, position, clicks");
+        // Feature Gating: se não for PRO, não persiste blocos de produto ou lead_form
+        const allowedBlocks = isPro
+          ? blocks
+          : blocks.filter((b) => b.type !== "product" && b.type !== "lead_form");
 
-        if (blockErr) throw blockErr;
-        if (insertedBlocks) {
-          setBlocks(insertedBlocks);
+        if (allowedBlocks.length > 0) {
+          const blocksToInsert = allowedBlocks.map((b, idx) => ({
+            bio_page_id: page.id,
+            position: idx,
+            type: b.type,
+            data: b.data,
+            clicks: b.clicks || 0,
+            is_active: true,
+          }));
+          const { data: insertedBlocks, error: blockErr } = await supabase
+            .from("bio_blocks")
+            .insert(blocksToInsert)
+            .select("id, type, data, position, clicks");
+
+          if (blockErr) throw blockErr;
+          if (insertedBlocks) {
+            setBlocks(insertedBlocks);
+          }
+        } else {
+          setBlocks([]);
         }
       }
 
@@ -1003,14 +1025,19 @@ export default function BioEditorClient({
                   <button
                     type="button"
                     onClick={() => handleAddBlock("product")}
-                    className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-purple-50 hover:border-purple-200 p-2.5 text-left transition"
+                    className="relative flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-purple-50 hover:border-purple-200 p-2.5 text-left transition"
                   >
                     <span className="grid h-7 w-7 place-items-center rounded-lg bg-purple-100 text-purple-700 shrink-0">
                       <ShoppingBag className="h-4 w-4" />
                     </span>
-                    <div>
-                      <span className="block text-xs font-bold text-zinc-900">Produto / Vitrine</span>
-                      <span className="block text-[10px] text-zinc-500">Foto, preço e cupom</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="block text-xs font-bold text-zinc-900 truncate">Produto / Vitrine</span>
+                        <span className="inline-flex items-center gap-0.5 rounded bg-amber-400/20 border border-amber-300 px-1 py-0.2 text-[9px] font-extrabold text-amber-800">
+                          PRO 👑
+                        </span>
+                      </div>
+                      <span className="block text-[10px] text-zinc-500 truncate">Foto, preço e cupom</span>
                     </div>
                   </button>
 
@@ -1045,14 +1072,19 @@ export default function BioEditorClient({
                   <button
                     type="button"
                     onClick={() => handleAddBlock("lead_form")}
-                    className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-indigo-50 hover:border-indigo-200 p-2.5 text-left transition"
+                    className="relative flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-indigo-50 hover:border-indigo-200 p-2.5 text-left transition"
                   >
                     <span className="grid h-7 w-7 place-items-center rounded-lg bg-indigo-100 text-indigo-700 shrink-0">
                       <Users className="h-4 w-4" />
                     </span>
-                    <div>
-                      <span className="block text-xs font-bold text-zinc-900">Captura de Leads</span>
-                      <span className="block text-[10px] text-zinc-500">Coleta Whats/E-mail</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="block text-xs font-bold text-zinc-900 truncate">Captura de Leads</span>
+                        <span className="inline-flex items-center gap-0.5 rounded bg-amber-400/20 border border-amber-300 px-1 py-0.2 text-[9px] font-extrabold text-amber-800">
+                          PRO 👑
+                        </span>
+                      </div>
+                      <span className="block text-[10px] text-zinc-500 truncate">Coleta Whats/E-mail</span>
                     </div>
                   </button>
 
@@ -1828,6 +1860,86 @@ export default function BioEditorClient({
                   </p>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Upgrade PRO para Feature Gating */}
+      {proUpgradeModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-100 text-amber-700 border border-amber-200 shadow-xs">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="inline-block rounded-full bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-extrabold text-amber-800">
+                    RECURSO PRO 👑
+                  </span>
+                  <h3 className="text-base font-bold text-zinc-900 mt-0.5">
+                    {proUpgradeModal.featureName}
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProUpgradeModal({ open: false, featureName: "" })}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              O recurso de <strong>{proUpgradeModal.featureName}</strong> é exclusivo dos planos <strong>PRO</strong> e <strong>Business</strong>. Ele permite transformar seu link da bio em um verdadeiro canal de vendas e captação direta de clientes.
+            </p>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs font-bold text-amber-950">LinkSnap PRO</span>
+                <span className="text-base font-extrabold text-zinc-900">
+                  R$ 19,90<span className="text-xs font-normal text-zinc-600">/mês</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-600">
+                Ou R$ 199/ano no plano anual (apenas R$ 14,90/mês). Cancele quando quiser.
+              </p>
+              <ul className="text-[11px] text-zinc-700 space-y-1 pt-1">
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>Vitrines de produtos & afiliados ilimitadas</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>Captura nativa de leads com WhatsApp</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>1 Domínio próprio (.com.br) incluso</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>Selo Verificado Azul e remoção da marca</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setProUpgradeModal({ open: false, featureName: "" })}
+                className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition"
+              >
+                Voltar
+              </button>
+              <Link
+                href="/dashboard/settings#plan"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
+              >
+                Fazer Upgrade PRO ⚡
+              </Link>
             </div>
           </div>
         </div>

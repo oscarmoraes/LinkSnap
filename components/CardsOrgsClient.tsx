@@ -76,17 +76,21 @@ export default function CardsOrgsClient({
   initialOrgs,
   userId,
   userDomains,
+  planTier = "free",
 }: {
   initialOrgs: OrgItem[];
   userId: string;
   userDomains: CustomDomainItem[];
+  planTier?: string;
 }) {
+  const isBusiness = planTier === "enterprise";
   const router = useRouter();
   const supabase = createClient();
   const [orgs, setOrgs] = useState<OrgItem[]>(initialOrgs);
 
   // Estado do Modal (Criação ou Edição)
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [editingOrg, setEditingOrg] = useState<OrgItem | null>(null);
 
   // Form Fields
@@ -100,6 +104,10 @@ export default function CardsOrgsClient({
   const [isSaving, setIsSaving] = useState(false);
 
   const openCreateModal = () => {
+    if (!isBusiness) {
+      setShowBusinessModal(true);
+      return;
+    }
     setEditingOrg(null);
     setName("");
     setSlug("");
@@ -155,6 +163,11 @@ export default function CardsOrgsClient({
   const handleSaveOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    if (!isBusiness) {
+      setShowBusinessModal(true);
+      return;
+    }
 
     const orgSlug = (slug.trim() || name.trim())
       .toLowerCase()
@@ -278,13 +291,21 @@ export default function CardsOrgsClient({
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Cadastrar Nova Equipe
-        </button>
+        <div className="flex items-center gap-2.5">
+          {!isBusiness && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-300 px-2.5 py-1 text-xs font-bold text-amber-800 shadow-2xs">
+              <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+              Exclusivo Business 💼
+            </span>
+          )}
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Cadastrar Nova Equipe
+          </button>
+        </div>
       </div>
 
       {/* Grid de Equipes */}
@@ -677,6 +698,90 @@ export default function CardsOrgsClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Upgrade Business para Carteirinhas e Equipes */}
+      {showBusinessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-amber-200 bg-white p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-100 text-amber-700 border border-amber-200 shadow-xs">
+                  <Building2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="inline-block rounded-full bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-extrabold text-amber-800">
+                    PLANO BUSINESS (ENTERPRISE) 💼
+                  </span>
+                  <h3 className="text-base font-bold text-zinc-900 mt-0.5">
+                    Carteirinhas Digitais de Equipe
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBusinessModal(false)}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-600 leading-relaxed">
+              O gerenciamento corporativo de equipes, emissão de crachás com QR Code antifraude, validação pública e domínio corporativo são recursos exclusivos do <strong>Plano Business</strong>.
+            </p>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs font-bold text-amber-950">Plano Business</span>
+                <span className="text-base font-extrabold text-zinc-900">
+                  R$ 49,90<span className="text-xs font-normal text-zinc-600">/mês</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-600">
+                Ou R$ 499/ano no ciclo anual (apenas R$ 34,90/mês). Ativação imediata via Pix ou Cartão.
+              </p>
+              <ul className="text-[11px] text-zinc-700 space-y-1.5 pt-1">
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>Crachás e Carteirinhas de equipe ilimitadas (/c/empresa/membro)</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>Validação pública de status (Ativo / Desligado) por QR Code</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>Importação de colaboradores em lote via planilha CSV</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>Até 5 domínios próprios e relatórios compartilháveis</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                  <span>Download de crachás em alta resolução (PNG) para impressão PVC</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowBusinessModal(false)}
+                className="rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition"
+              >
+                Voltar
+              </button>
+              <Link
+                href="/dashboard/settings#plan"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition"
+              >
+                Fazer Upgrade Business 🚀
+              </Link>
+            </div>
           </div>
         </div>
       )}
